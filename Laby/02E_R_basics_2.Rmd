@@ -8,16 +8,16 @@ date: "2025-03-02"
 
 In this session, we will delve deeper into **matrices** in R. Matrices are two-dimensional, **homogeneous** data structures—meaning all elements share the same type—and serve as the foundation for many data analysis tasks. You will learn how to:
 
-1. Create matrices using `matrix()`, `cbind()`, and `rbind()`  
-2. Perform **arithmetic operations** on matrices  
-3. Manipulate matrices (naming rows/columns, transposing, inverting)  
-4. Subset (select) specific rows, columns, or sub-sections of matrices  
+1.  Create matrices using `matrix()`, `cbind()`, and `rbind()`\
+2.  Perform **arithmetic operations** on matrices\
+3.  Manipulate matrices (naming rows/columns, transposing, inverting)\
+4.  Subset (select) specific rows, columns, or sub-sections of matrices
 
 By the end of this lesson, you will be proficient in creating, modifying, and analyzing matrices in R.
 
 > **Key Reminder**: R uses 1-based indexing: the first row/column is indexed with `[1]`, not `[0]`.
 
----
+------------------------------------------------------------------------
 
 # 1. Creating a Matrix
 
@@ -53,7 +53,7 @@ matrix(1:20, nrow = 4, byrow = FALSE)
 matrix(1:20, nrow = 4, byrow = TRUE)
 ```
 
----
+------------------------------------------------------------------------
 
 # 2. Creating Matrices from Multiple Vectors
 
@@ -77,7 +77,7 @@ vec_matrix
 ncol(vec_matrix)
 ```
 
----
+------------------------------------------------------------------------
 
 # 3. Naming Matrices
 
@@ -95,7 +95,7 @@ rownames(vec_matrix) <- items
 vec_matrix
 ```
 
----
+------------------------------------------------------------------------
 
 # 4. Matrix Arithmetic
 
@@ -109,15 +109,20 @@ mat
 
 ## 4.1 Arithmetic with Scalars
 
-- **Multiplication** by a scalar:
+-   **Multiplication** by a scalar:
+
 ```{r}
 4 * mat
 ```
-- **Division** by a scalar:
+
+-   **Division** by a scalar:
+
 ```{r}
 mat / 10
 ```
-- **Exponentiation** by a scalar:
+
+-   **Exponentiation** by a scalar:
+
 ```{r}
 mat ^ 2  # each element squared
 ```
@@ -150,16 +155,16 @@ mat %*% mat
 
 > **Important**: For `%*%` to work, the number of columns in the left matrix must match the number of rows in the right matrix. Here, `mat` is a 10x10 matrix, so multiplying `mat %*% mat` yields another 10x10 matrix.
 
----
+------------------------------------------------------------------------
 
 # 5. Summaries and Other Operations
 
 ## 5.1 Summarizing Rows and Columns
 
-- `colSums(mat)` – sum of each column  
-- `rowSums(mat)` – sum of each row  
-- `colMeans(mat)` – mean of each column  
-- `rowMeans(mat)` – mean of each row  
+-   `colSums(mat)` – sum of each column\
+-   `rowSums(mat)` – sum of each row\
+-   `colMeans(mat)` – mean of each column\
+-   `rowMeans(mat)` – mean of each row
 
 ```{r}
 colSums(vec_matrix)
@@ -189,7 +194,7 @@ vec_matrix <- cbind(vec_matrix, avg)
 vec_matrix
 ```
 
----
+------------------------------------------------------------------------
 
 # 6. Matrix Selection and Indexing
 
@@ -212,62 +217,63 @@ mat[1:2, 1:3]
 mat[4:6, 4:6]
 ```
 
----
+------------------------------------------------------------------------
 
 # 7. Exercises
 
 Below are practice exercises to reinforce your understanding of matrices in R.
 
----
+------------------------------------------------------------------------
 
 ## Exercise 1: Creating a Matrix from Vectors
 
 **Question**: Create two vectors `A` and `B`, where `A` is `(1, 2, 3)` and `B` is `(4, 5, 6)`. Use either `cbind()` or `rbind()` to create a 2-by-3 matrix from these vectors.
 
 ```{r}
-# Your answer here:
+A <- c(1, 2, 3)
+B <- c(4, 5, 6)
+cbind(A, B)
+rbind(A, B)
 ```
 
-
----
+------------------------------------------------------------------------
 
 ## Exercise 2: Creating a 3 by 3 Matrix
 
 **Question**: Create a 3-by-3 matrix consisting of the numbers 1 through 9 using the `1:9` sequence and the `matrix()` function with `nrow = 3`. Assign this matrix to the variable `mat`.
 
 ```{r}
-# Your answer here:
+mat <- matrix(1:9, nrow = 3)
+mat
 ```
 
-
----
+------------------------------------------------------------------------
 
 ## Exercise 3: Confirming Matrix Structure
 
 **Question**: Confirm that `mat` is a matrix using the `is.matrix()` function.
 
 ```{r}
-# Your answer here:
+is.matrix(mat)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Exercise 4: Creating a 5 by 5 Matrix
 
 **Question**: Create a 5-by-5 matrix consisting of the numbers 1 through 25 and assign it to the variable `mat2`. Ensure that the **top row** contains the numbers 1 to 5.
 
 ```{r}
-# Your answer here:
+
 ```
 
-
----
+------------------------------------------------------------------------
 
 ## Exercise 5: Selecting a Subsection of `mat2`
 
 **Question**: Using indexing notation, grab a sub-section of `mat2` that looks like this:
 
-```
+```         
 [  7,  8 ]
 [ 12, 13 ]
 ```
@@ -276,13 +282,13 @@ Below are practice exercises to reinforce your understanding of matrices in R.
 # Your answer here:
 ```
 
----
+------------------------------------------------------------------------
 
 ## Exercise 6: Selecting Another Subsection of `mat2`
 
 **Question**: Using indexing notation, grab a sub-section of `mat2` that looks like this:
 
-```
+```         
 [ 19, 20 ]
 [ 24, 25 ]
 ```
@@ -291,7 +297,7 @@ Below are practice exercises to reinforce your understanding of matrices in R.
 # Your answer here:
 ```
 
----
+------------------------------------------------------------------------
 
 ## Exercise 7: Summing Elements in `mat2`
 
@@ -301,8 +307,7 @@ Below are practice exercises to reinforce your understanding of matrices in R.
 # Your answer here:
 ```
 
-
----
+------------------------------------------------------------------------
 
 ## Exercise 8: Creating a Matrix with Random Numbers
 
@@ -312,7 +317,7 @@ Below are practice exercises to reinforce your understanding of matrices in R.
 # Your answer here:
 ```
 
----
+------------------------------------------------------------------------
 
 ## Exercise 9: Transposing a Matrix
 
@@ -322,8 +327,7 @@ Below are practice exercises to reinforce your understanding of matrices in R.
 # Your answer here:
 ```
 
-
----
+------------------------------------------------------------------------
 
 ## Exercise 10: Inverting a Matrix
 
@@ -333,10 +337,9 @@ Below are practice exercises to reinforce your understanding of matrices in R.
 # Your answer here:
 ```
 
-
 You should see:
 
-```
+```         
      [,1] [,2]
 [1,]    1    0
 [2,]    0    1
@@ -344,7 +347,7 @@ You should see:
 
 *(Note that not all matrices are invertible; they must be square with a non-zero determinant.)*
 
----
+------------------------------------------------------------------------
 
 ## Exercise 11: Determinant of a Matrix
 
@@ -354,27 +357,26 @@ You should see:
 # Your answer here:
 ```
 
-
 If the determinant is not zero, the matrix is invertible.
 
----
+------------------------------------------------------------------------
 
 # Summary
 
 In this session, we covered:
 
-- **Creating matrices** with `matrix()`, `cbind()`, and `rbind()`  
-- **Naming rows and columns** for easier referencing  
-- **Matrix arithmetic** (element-wise and “true” matrix multiplication)  
-- **Indexing and subsetting** (rows, columns, and submatrices)  
-- **Useful functions** (`rowSums()`, `colSums()`, `t()`, `solve()`, etc.)  
+-   **Creating matrices** with `matrix()`, `cbind()`, and `rbind()`\
+-   **Naming rows and columns** for easier referencing\
+-   **Matrix arithmetic** (element-wise and “true” matrix multiplication)\
+-   **Indexing and subsetting** (rows, columns, and submatrices)\
+-   **Useful functions** (`rowSums()`, `colSums()`, `t()`, `solve()`, etc.)
 
 Matrices are central to various data manipulations and computational tasks, and they form the basis for more complex data structures such as data frames and arrays.
 
 ## Next Steps
 
-1. Complete and review all the exercises to strengthen your understanding of matrix operations.  
-2. Explore additional matrix functions (e.g., `eigen()`, `svd()`, or advanced linear algebra packages).  
-3. Practice combining matrices with other data structures for comprehensive data analyses.
+1.  Complete and review all the exercises to strengthen your understanding of matrix operations.\
+2.  Explore additional matrix functions (e.g., `eigen()`, `svd()`, or advanced linear algebra packages).\
+3.  Practice combining matrices with other data structures for comprehensive data analyses.
 
 **Keep exploring and happy coding!**
