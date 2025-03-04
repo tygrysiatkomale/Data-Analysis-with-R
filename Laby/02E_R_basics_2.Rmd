@@ -1,0 +1,380 @@
+---
+title: "01E - R Basics 2"
+author: "Piotr Kosowski"
+date: "2025-03-02"
+---
+
+# Introduction
+
+In this session, we will delve deeper into **matrices** in R. Matrices are two-dimensional, **homogeneous** data structures—meaning all elements share the same type—and serve as the foundation for many data analysis tasks. You will learn how to:
+
+1. Create matrices using `matrix()`, `cbind()`, and `rbind()`  
+2. Perform **arithmetic operations** on matrices  
+3. Manipulate matrices (naming rows/columns, transposing, inverting)  
+4. Subset (select) specific rows, columns, or sub-sections of matrices  
+
+By the end of this lesson, you will be proficient in creating, modifying, and analyzing matrices in R.
+
+> **Key Reminder**: R uses 1-based indexing: the first row/column is indexed with `[1]`, not `[0]`.
+
+---
+
+# 1. Creating a Matrix
+
+Matrices are created using the `matrix()` function, which combines elements from a vector into rows and columns.
+
+```{r}
+# Creating a vector of numbers from 1 to 20
+v <- 1:20
+v
+```
+
+```{r}
+# Creating a matrix from vector v (default: filled by columns)
+matrix(v)
+```
+
+```{r}
+# Creating a matrix with 2 rows (still filled by columns by default)
+matrix(v, nrow = 2)
+```
+
+## 1.1 Filling by Rows vs. Columns
+
+By default, `matrix()` fills values **column by column**. You can specify `byrow = TRUE` to fill **row by row** instead.
+
+```{r}
+# Filling by columns
+matrix(1:20, nrow = 4, byrow = FALSE)
+```
+
+```{r}
+# Filling by rows
+matrix(1:20, nrow = 4, byrow = TRUE)
+```
+
+---
+
+# 2. Creating Matrices from Multiple Vectors
+
+Sometimes, you have separate vectors you want to combine into a single matrix. This is especially helpful for related data sets.
+
+```{r}
+# Two example vectors
+v1 <- c(79, 66, 25, 75, 38, 78, 40, 65, 54, 82, 56, 78)
+v2 <- c(28, 2, 29, 45, 69, 7, 7, 9, 99, 74, 11, 34)
+
+# Combine these vectors into one
+vecs <- c(v1, v2)
+
+# Create a matrix from the combined vector (two rows, fill by row)
+vec_matrix <- matrix(vecs, byrow = TRUE, nrow = 2)
+vec_matrix
+```
+
+```{r}
+# Check the number of columns
+ncol(vec_matrix)
+```
+
+---
+
+# 3. Naming Matrices
+
+Naming rows and columns makes it easier to understand and reference specific elements.
+
+```{r}
+# Vectors for column (month) and row (items) names
+months <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", 
+            "Sep", "Oct", "Nov", "Dec")
+items <- c("A", "B")
+
+# Assign column names and row names
+colnames(vec_matrix) <- months
+rownames(vec_matrix) <- items
+vec_matrix
+```
+
+---
+
+# 4. Matrix Arithmetic
+
+R supports element-wise arithmetic between matrices and scalars or between two matrices of the same dimensions.
+
+```{r}
+# Create a 10x10 matrix
+mat <- matrix(1:100, byrow = TRUE, nrow = 10)
+mat
+```
+
+## 4.1 Arithmetic with Scalars
+
+- **Multiplication** by a scalar:
+```{r}
+4 * mat
+```
+- **Division** by a scalar:
+```{r}
+mat / 10
+```
+- **Exponentiation** by a scalar:
+```{r}
+mat ^ 2  # each element squared
+```
+
+## 4.2 Comparison Operators
+
+Comparison operators (`>`, `<`, `==`, etc.) applied to a matrix return a logical matrix:
+
+```{r}
+mat > 50
+```
+
+## 4.3 Element-wise Operations Between Matrices
+
+When you perform `+`, `-`, `*`, `/` on two matrices of the **same shape**, R applies the operation element by element:
+
+```{r}
+mat + mat
+mat / mat
+mat * mat
+```
+
+## 4.4 True Matrix Multiplication
+
+For matrix multiplication in the linear algebra sense, you must use `%*%`:
+
+```{r}
+mat %*% mat
+```
+
+> **Important**: For `%*%` to work, the number of columns in the left matrix must match the number of rows in the right matrix. Here, `mat` is a 10x10 matrix, so multiplying `mat %*% mat` yields another 10x10 matrix.
+
+---
+
+# 5. Summaries and Other Operations
+
+## 5.1 Summarizing Rows and Columns
+
+- `colSums(mat)` – sum of each column  
+- `rowSums(mat)` – sum of each row  
+- `colMeans(mat)` – mean of each column  
+- `rowMeans(mat)` – mean of each row  
+
+```{r}
+colSums(vec_matrix)
+rowSums(vec_matrix)
+colMeans(vec_matrix)
+rowMeans(vec_matrix)
+```
+
+## 5.2 Binding Rows and Columns
+
+Use `rbind()` to add new rows and `cbind()` to add new columns.
+
+```{r}
+# A new vector to add as another row
+v3 <- c(12, 7, 43, 45, 37, 23, 97, 19, 12, 34, 16, 39)
+
+# Bind it to vec_matrix as a new row, naming it 'C'
+vec_matrix <- rbind(vec_matrix, "C" = v3)
+vec_matrix
+```
+
+### Adding a Column of Averages
+
+```{r}
+avg <- rowMeans(vec_matrix)
+vec_matrix <- cbind(vec_matrix, avg)
+vec_matrix
+```
+
+---
+
+# 6. Matrix Selection and Indexing
+
+You can select elements by `[row_index, column_index]`. Leaving one index blank implies “all rows” or “all columns” in that dimension.
+
+```{r}
+# Selecting the first row
+mat[1, ]
+
+# Selecting the first column
+mat[, 1]
+
+# Selecting the first three rows
+mat[1:3, ]
+
+# Selecting a top-left submatrix (2 rows x 3 columns)
+mat[1:2, 1:3]
+
+# Selecting a center submatrix (rows 4-6, columns 4-6)
+mat[4:6, 4:6]
+```
+
+---
+
+# 7. Exercises
+
+Below are practice exercises to reinforce your understanding of matrices in R.
+
+---
+
+## Exercise 1: Creating a Matrix from Vectors
+
+**Question**: Create two vectors `A` and `B`, where `A` is `(1, 2, 3)` and `B` is `(4, 5, 6)`. Use either `cbind()` or `rbind()` to create a 2-by-3 matrix from these vectors.
+
+```{r}
+# Your answer here:
+```
+
+
+---
+
+## Exercise 2: Creating a 3 by 3 Matrix
+
+**Question**: Create a 3-by-3 matrix consisting of the numbers 1 through 9 using the `1:9` sequence and the `matrix()` function with `nrow = 3`. Assign this matrix to the variable `mat`.
+
+```{r}
+# Your answer here:
+```
+
+
+---
+
+## Exercise 3: Confirming Matrix Structure
+
+**Question**: Confirm that `mat` is a matrix using the `is.matrix()` function.
+
+```{r}
+# Your answer here:
+```
+
+---
+
+## Exercise 4: Creating a 5 by 5 Matrix
+
+**Question**: Create a 5-by-5 matrix consisting of the numbers 1 through 25 and assign it to the variable `mat2`. Ensure that the **top row** contains the numbers 1 to 5.
+
+```{r}
+# Your answer here:
+```
+
+
+---
+
+## Exercise 5: Selecting a Subsection of `mat2`
+
+**Question**: Using indexing notation, grab a sub-section of `mat2` that looks like this:
+
+```
+[  7,  8 ]
+[ 12, 13 ]
+```
+
+```{r}
+# Your answer here:
+```
+
+---
+
+## Exercise 6: Selecting Another Subsection of `mat2`
+
+**Question**: Using indexing notation, grab a sub-section of `mat2` that looks like this:
+
+```
+[ 19, 20 ]
+[ 24, 25 ]
+```
+
+```{r}
+# Your answer here:
+```
+
+---
+
+## Exercise 7: Summing Elements in `mat2`
+
+**Question**: What is the sum of all the elements in `mat2`?
+
+```{r}
+# Your answer here:
+```
+
+
+---
+
+## Exercise 8: Creating a Matrix with Random Numbers
+
+**Question**: Use the `runif()` function to create a 4-by-5 matrix (`rand_mat`) consisting of 20 random numbers between 0 and 1.
+
+```{r}
+# Your answer here:
+```
+
+---
+
+## Exercise 9: Transposing a Matrix
+
+**Question**: Transpose the matrix `mat2` and assign the result to `mat2_transposed`.
+
+```{r}
+# Your answer here:
+```
+
+
+---
+
+## Exercise 10: Inverting a Matrix
+
+**Question**: Create a 2-by-2 matrix called `invert_mat` and compute its inverse using the `solve()` function. Verify that multiplying the matrix by its inverse yields the identity matrix.
+
+```{r}
+# Your answer here:
+```
+
+
+You should see:
+
+```
+     [,1] [,2]
+[1,]    1    0
+[2,]    0    1
+```
+
+*(Note that not all matrices are invertible; they must be square with a non-zero determinant.)*
+
+---
+
+## Exercise 11: Determinant of a Matrix
+
+**Question**: Calculate the determinant of `invert_mat` to verify it is indeed non-zero.
+
+```{r}
+# Your answer here:
+```
+
+
+If the determinant is not zero, the matrix is invertible.
+
+---
+
+# Summary
+
+In this session, we covered:
+
+- **Creating matrices** with `matrix()`, `cbind()`, and `rbind()`  
+- **Naming rows and columns** for easier referencing  
+- **Matrix arithmetic** (element-wise and “true” matrix multiplication)  
+- **Indexing and subsetting** (rows, columns, and submatrices)  
+- **Useful functions** (`rowSums()`, `colSums()`, `t()`, `solve()`, etc.)  
+
+Matrices are central to various data manipulations and computational tasks, and they form the basis for more complex data structures such as data frames and arrays.
+
+## Next Steps
+
+1. Complete and review all the exercises to strengthen your understanding of matrix operations.  
+2. Explore additional matrix functions (e.g., `eigen()`, `svd()`, or advanced linear algebra packages).  
+3. Practice combining matrices with other data structures for comprehensive data analyses.
+
+**Keep exploring and happy coding!**
