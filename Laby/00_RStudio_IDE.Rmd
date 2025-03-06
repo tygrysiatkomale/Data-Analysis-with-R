@@ -177,7 +177,6 @@ Before using a package, you need to load it into your session.
 ```{r}
 library(ggplot2)
 ```
-
 -   **Using the Packages Pane:**
     -   In the "Packages" tab, find the desired package and check the box next to it to load.
 
@@ -554,3 +553,4 @@ Happy coding!
 -   [R Documentation](https://r-project.org)
 -   [R Markdown: The Definitive Guide](https://bookdown.org/yihui/rmarkdown/)
 -   [R for Data Science](https://r4ds.had.co.nz)
+

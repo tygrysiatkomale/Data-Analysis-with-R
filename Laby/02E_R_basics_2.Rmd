@@ -264,7 +264,8 @@ is.matrix(mat)
 **Question**: Create a 5-by-5 matrix consisting of the numbers 1 through 25 and assign it to the variable `mat2`. Ensure that the **top row** contains the numbers 1 to 5.
 
 ```{r}
-
+mat2 <- matrix(1:25, ncol=5, byrow = TRUE)
+mat2
 ```
 
 ------------------------------------------------------------------------
@@ -279,7 +280,7 @@ is.matrix(mat)
 ```
 
 ```{r}
-# Your answer here:
+mat2[2:3, 2:3]
 ```
 
 ------------------------------------------------------------------------
@@ -294,7 +295,7 @@ is.matrix(mat)
 ```
 
 ```{r}
-# Your answer here:
+mat2[4:5, 4:5]
 ```
 
 ------------------------------------------------------------------------
@@ -304,7 +305,7 @@ is.matrix(mat)
 **Question**: What is the sum of all the elements in `mat2`?
 
 ```{r}
-# Your answer here:
+sum(mat2)
 ```
 
 ------------------------------------------------------------------------
@@ -314,7 +315,7 @@ is.matrix(mat)
 **Question**: Use the `runif()` function to create a 4-by-5 matrix (`rand_mat`) consisting of 20 random numbers between 0 and 1.
 
 ```{r}
-# Your answer here:
+
 ```
 
 ------------------------------------------------------------------------
@@ -334,7 +335,7 @@ is.matrix(mat)
 **Question**: Create a 2-by-2 matrix called `invert_mat` and compute its inverse using the `solve()` function. Verify that multiplying the matrix by its inverse yields the identity matrix.
 
 ```{r}
-# Your answer here:
+
 ```
 
 You should see:
