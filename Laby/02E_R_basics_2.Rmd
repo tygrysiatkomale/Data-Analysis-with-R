@@ -315,7 +315,8 @@ sum(mat2)
 **Question**: Use the `runif()` function to create a 4-by-5 matrix (`rand_mat`) consisting of 20 random numbers between 0 and 1.
 
 ```{r}
-
+rand_mat <- matrix(runif(20, 0, 1), ncol = 5)
+rand_mat
 ```
 
 ------------------------------------------------------------------------
@@ -325,7 +326,9 @@ sum(mat2)
 **Question**: Transpose the matrix `mat2` and assign the result to `mat2_transposed`.
 
 ```{r}
-# Your answer here:
+mat2
+mat2_transposed <- t(mat)
+mat2_transposed
 ```
 
 ------------------------------------------------------------------------
@@ -335,7 +338,8 @@ sum(mat2)
 **Question**: Create a 2-by-2 matrix called `invert_mat` and compute its inverse using the `solve()` function. Verify that multiplying the matrix by its inverse yields the identity matrix.
 
 ```{r}
-
+invert_mat <- matrix(c(1, 2, 3, 4), 2)
+invert_mat %*% solve(invert_mat)
 ```
 
 You should see:
@@ -355,7 +359,7 @@ You should see:
 **Question**: Calculate the determinant of `invert_mat` to verify it is indeed non-zero.
 
 ```{r}
-# Your answer here:
+det(invert_mat)
 ```
 
 If the determinant is not zero, the matrix is invertible.
