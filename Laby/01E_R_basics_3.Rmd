@@ -1,0 +1,483 @@
+---
+title: "03E - R Basics 3"
+author: "Piotr Kosowski"
+date: "2025-03-02"
+---
+
+# Introduction to Data Frames
+
+**Data frames** are among the most important data structures in R, allowing you to store and manipulate **tabular data** efficiently. R also provides built-in data frames that you can use for practice and learning.
+
+This session covers:
+
+1. Accessing built-in data frames  
+2. Viewing and summarizing data (`head()`, `tail()`, `summary()`, `str()`)  
+3. Creating your own data frames with `data.frame()`  
+4. Selecting and filtering rows and columns  
+5. Adding and removing rows/columns  
+6. Basic data frame operations (renaming columns, combining data, etc.)  
+
+By the end of these exercises, you should be comfortable performing **basic data frame manipulations** in R.
+
+---
+
+# 1. Built-in Data Frames
+
+R comes with several built-in data frames for practice. Below are some commonly used examples:
+
+## 1.1 `state.x77`
+
+This data set contains statistics about the 50 U.S. states.
+
+```{r}
+?state.x77    # Help documentation
+state.x77     # View the data
+```
+
+## 1.2 `USPersonalExpenditure`
+
+This data set provides information on personal expenditures in the United States across different categories.
+
+```{r}
+?USPersonalExpenditure
+USPersonalExpenditure
+```
+
+## 1.3 `women`
+
+This data set contains average heights and weights for American women aged 30-39.
+
+```{r}
+?women
+women
+```
+
+## 1.4 Listing All Built-in Datasets
+
+You can use `data()` to list available built-in data sets:
+
+```{r}
+data()
+```
+
+---
+
+# 2. Viewing and Exploring a Data Frame
+
+You can **assign** a built-in data set to a variable for easy reference. Functions like `head()` and `tail()` show the first or last rows.
+
+```{r}
+# Example: assigning 'state.x77' to a variable
+states <- state.x77
+
+# View first 6 rows
+head(states)
+
+# View last 6 rows
+tail(states)
+```
+
+## 2.1 Summary and Structure
+
+- `summary(object)` shows summary statistics for each column.
+- `str(object)` displays the internal structure (types, sample data, etc.).
+
+```{r}
+summary(states)
+str(states)
+```
+
+> Note: `state.x77` is actually a matrix rather than a data frame. You can convert it to a data frame using `as.data.frame(state.x77)` if needed.
+
+---
+
+# 3. Creating Your Own Data Frames
+
+To create a data frame, you can combine vectors of the **same length** using `data.frame()`.
+
+## 3.1 Example: Weather Data
+
+```{r}
+# Create vectors for days, temperature, and rainfall
+days <- c("Mon", "Tue", "Wed", "Thu", "Fri")
+temp <- c(22.2, 21, 23, 24.3, 25)
+rain <- c(TRUE, TRUE, FALSE, FALSE, TRUE)
+
+# Combine into a data frame
+df <- data.frame(days, temp, rain)
+df
+
+# Summary of df
+summary(df)
+```
+
+---
+
+# 4. Selection and Indexing
+
+Just like with vectors and matrices, you can **index** data frames by `[row, column]`.
+
+```{r}
+# First row
+df[1, ]
+
+# First column
+df[, 1]
+
+# Fifth row
+df[5, ]
+```
+
+## 4.1 Selecting by Column Name
+
+You can select columns using their names—either by indexing with `[ , "col_name"]`, `df$col_name`, or `df[["col_name"]]`.
+
+```{r}
+df["rain"] # df
+df$rain # vector
+df[["rain"]] # vector
+```
+
+## 4.2 Subset Rows with Conditions
+
+Use `subset()` to filter rows based on specific conditions.
+
+```{r}
+# Rows where 'rain' is TRUE
+subset(df, subset = rain == TRUE)
+
+# Rows where 'temp' is greater than 22
+subset(df, subset = temp > 22)
+```
+
+## 4.3 Ordering a Data Frame
+
+You can reorder rows based on a column’s values.
+
+```{r}
+# Ascending order by 'temp'
+sorted_temp <- order(df$temp)
+df[sorted_temp, ]
+
+# Descending order by 'temp'
+desc_temp <- order(-df$temp)
+df[desc_temp, ]
+```
+
+---
+
+# 5. Data Frame Operations
+
+## 5.1 Creating Data Frames
+
+```{r}
+# An empty data frame
+empty <- data.frame()
+
+# Two vectors
+c1 <- 1:10
+c2 <- letters[1:10]
+
+# Combine vectors
+df2 <- data.frame(col_name_1 = c1, col_name_2 = c2)
+df2
+```
+
+## 5.2 Inspecting Dimensions and Names
+
+```{r}
+nrow(df2)
+ncol(df2)
+colnames(df2)
+rownames(df2)
+```
+
+## 5.3 Referencing Cells
+
+You can access (and modify) specific cells with `[[row, column]]` or `[row, column]`.
+
+```{r}
+# Value at row 5, column 2
+df2[[5, 2]]
+
+# Modify a single cell
+df2[[2, "col_name_1"]] <- 99999
+df2
+```
+
+## 5.4 Extracting Rows, Columns, and Cells
+
+```{r}
+# Row as a data frame
+rowdf <- df2[1, ]
+rowdf
+
+# Row as a numeric or character vector
+vrow_num <- as.numeric(as.vector(df2[1, ]))
+vrow_char <- as.character(as.vector(df2[1, ]))
+
+vrow_num
+vrow_char
+```
+
+## 5.5 Working with Built-in Data Frames: `mtcars`
+
+```{r}
+cars <- mtcars
+head(cars)
+
+# Accessing 'mpg' column
+cars$mpg # vector
+cars[, "mpg"] # vector
+cars[["mpg"]] # vector
+cars["mpg"] # df
+```
+
+## 5.6 Adding Rows
+
+Use `rbind()` to append rows to a data frame (matching column names).
+
+```{r}
+df3 <- data.frame(col_name_1 = 2000, col_name_2 = "new")
+df_new <- rbind(df2, df3)
+df_new
+```
+
+## 5.7 Adding Columns
+
+You can add a new column by `df$newcol <- ...` or `df[,"newcol"] <- ...`.
+
+```{r}
+df2$newcol <- rep(1, nrow(df2))
+df2
+
+df2[,"copy_of_col2"] <- df2$col_name_2
+df2
+```
+
+## 5.8 Creating Columns with Calculations
+
+```{r}
+df2[["col1_times_2"]] <- df2$col_name_1 * 2
+df2
+```
+
+## 5.9 Renaming Columns
+
+You can rename columns by modifying `colnames()`.
+
+```{r}
+# Rename a single column
+colnames(df2)[2] <- "NEW_COL_NAME"
+df2
+
+# Rename all columns
+colnames(df2) <- c("col1", "col2", "col3", "col4", "col5")
+df2
+```
+
+## 5.10 Conditional Selection
+
+```{r}
+# Using logical operators
+sub1 <- df2[(df2$col1 > 8 & df2$col5 > 10), ]
+sub1
+
+# Using subset()
+sub2 <- subset(df2, col1 > 8 & col5 > 10)
+sub2
+```
+
+## 5.11 Selecting or Dropping Columns by Index
+
+```{r}
+# All columns except the first
+df2[, -1]
+
+# All columns except first and third
+df2[, -c(1, 3)]
+```
+
+---
+
+# 6. Exercises
+
+Below are some exercises to practice. 
+---
+
+### Exercise 1: Recreate a Data Frame
+
+**Question**: Recreate the following data frame by creating vectors and using `data.frame()`:
+
+| Name  | Age | Weight | Sex |
+|-------|-----|--------|-----|
+| Sam   | 22  | 150    | M   |
+| Frank | 25  | 165    | M   |
+| Amy   | 26  | 120    | F   |
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 2: Confirm Data Frame Structure
+
+**Question**: Check if `mtcars` is a data frame using the `is.data.frame()` function.
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 3: Convert a Matrix to a Data Frame
+
+**Question**: Use the `as.data.frame()` function to convert a matrix `mat` into a data frame.
+
+```{r}
+# Matrix
+mat <- matrix(1:25, nrow = 5)
+mat
+```
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 4: Assign and Preview `mtcars`
+
+**Question**: Assign the built-in data set `mtcars` to a variable named `df`. We'll use `df` for the remaining exercises.
+
+```{r}
+# Your solution here:
+```
+
+---
+
+### Exercise 5: Display First 6 Rows
+
+**Question**: Display the first 6 rows of `df`.
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 6: Calculate Average MPG
+
+**Question**: What is the average `mpg` value for all cars in `df`?
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 7: Select Cars with 6 Cylinders
+
+**Question**: Select rows where cars have **6 cylinders** (`cyl` column).
+
+```{r}
+# Your solution here:
+```
+
+
+
+---
+
+### Exercise 8: Select Specific Columns
+
+**Question**: From `df`, select **only** the columns `am`, `gear`, and `carb`.
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 9: Create a Performance Column
+
+**Question**: Create a new column called `performance` calculated by `hp / wt`.
+
+```{r}
+# Your solution here:
+```
+
+
+
+---
+
+### Exercise 10: Round Performance Values
+
+**Question**: Use the `round()` function to reduce the decimal places of the `performance` column to **2**.
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 11: Average MPG for High Performance Cars
+
+**Question**: What is the average `mpg` for cars with **more than 100 hp** **AND** `wt` > 2.5?
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+### Exercise 12: MPG of a Specific Car
+
+**Question**: What is the `mpg` of the `"Hornet Sportabout"`?
+
+*(Hint: row names in `mtcars` are the car models.)*
+
+```{r}
+# Your solution here:
+```
+
+
+---
+
+# 7. Summary
+
+In this session, we covered:
+
+- Accessing **built-in data frames**  
+- Viewing and summarizing data (`head()`, `tail()`, `str()`, `summary()`)  
+- Creating new data frames from vectors and matrices  
+- Selecting rows/columns and filtering with conditions  
+- Adding and removing rows/columns  
+- Renaming columns and performing computations within data frames  
+
+Mastering these operations is crucial for **efficient data analysis** in R. Data frames are the basis for more advanced data manipulation packages (e.g., **dplyr**, **data.table**), so a solid understanding here will serve you well in more complex projects.
+
+## Next Steps
+
+- **Complete all exercises** to reinforce your knowledge.  
+- Explore **dplyr** for more streamlined data manipulation.  
+- Learn how to **import and export** data (e.g., CSV, Excel, databases).  
+
+**Happy Coding!**
+
+---
+
+## References
+
+- [R Documentation: `data.frame`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/data.frame)  
+- [R for Data Science](https://r4ds.had.co.nz/)  
+- [Introduction to Data Frames](https://www.statmethods.net/input/)  
+- [Data Manipulation with dplyr](https://dplyr.tidyverse.org/)  

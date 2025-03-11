@@ -1,0 +1,381 @@
+---
+title: "04E - R Basics 4"
+author: "Piotr Kosowski"
+date: "2025-03-02"
+---
+
+# Introduction to R Lists
+
+Lists in R are **highly flexible** data structures capable of holding different data types and structures—vectors, matrices, data frames, and even other lists. This makes them ideal for organizing **heterogeneous** or **complex** data, as well as facilitating advanced data manipulation.
+
+**In this notebook, you’ll learn how to:**
+
+1. Create and name list elements  
+2. Access and modify list contents  
+3. Remove and update list elements  
+4. Apply functions over list elements (`lapply`, `sapply`)  
+5. Unlist and inspect lists (`unlist`, `str`)  
+
+By mastering these operations, you’ll be able to handle more sophisticated R workflows.
+
+---
+
+# 1. Creating Lists
+
+You create lists using the `list()` function, which can combine objects of **any** type under a single variable.
+
+## 1.1 Example: Creating a Simple List
+
+In this example, we’ll store a **vector**, a **matrix**, and a **data frame** within one list.
+
+```{r}
+# Create a vector
+v <- c(1, 2, 3, 4, 5)
+
+# Create a 2-row matrix
+m <- matrix(1:10, nrow = 2)
+
+# Use the built-in 'women' dataset as a data frame
+df <- women
+
+# Combine into a single list
+li <- list(v, m, df)
+li
+```
+
+- `v` is a numeric vector: `c(1,2,3,4,5)`.  
+- `m` is a 2-row matrix with values `1:10`.  
+- `df` is the `women` data set (a built-in data frame).
+
+## 1.2 Naming List Elements
+
+Assigning **names** to list elements makes your code more readable and easier to maintain.
+
+```{r}
+li <- list(sample_vec = v, sample_mat = m, sample_df = df)
+li
+```
+
+Now, each element in `li` has a **meaningful** name: `sample_vec`, `sample_mat`, `sample_df`.
+
+---
+
+# 2. Accessing List Elements
+
+You can retrieve elements from a list using several notations. Each has its own use case.
+
+## 2.1 Single Brackets `[ ]`
+
+- Using `[ ]` returns a **sublist**, preserving list structure:
+
+```{r}
+# Sublist with the first element by index
+li[1]
+
+# Sublist with 'sample_vec' by name
+li["sample_vec"]
+```
+
+## 2.2 Double Brackets `[[ ]]`
+
+- Using `[[ ]]` returns the **object itself** rather than a sublist:
+
+```{r}
+# Access the vector directly
+li[["sample_vec"]]
+```
+
+## 2.3 Dollar Sign `$`
+
+- If the list elements are named, `$` provides a concise way to access them:
+
+```{r}
+li$sample_vec
+li$sample_mat
+li$sample_df
+```
+
+## 2.4 Nested Indexing
+
+- Once you retrieve a specific object from the list, you can continue indexing that object:
+
+```{r}
+# First element of the 'sample_vec'
+li[["sample_vec"]][1]
+
+# Subset of the 'sample_mat'
+li[["sample_mat"]][1:2, 1:2]
+
+# 'height' column of the 'sample_df'
+li[["sample_df"]][, "height"]
+```
+
+---
+
+# 3. Modifying Lists
+
+You can add, remove, or change list elements on the fly.
+
+## 3.1 Adding Elements
+
+```{r}
+# Create a new vector and append it to an existing element
+v_new <- c(6, 7, 8)
+li$sample_vec <- c(li$sample_vec, v_new)
+li$sample_vec
+```
+
+*(`sample_vec` now holds `[1,2,3,4,5,6,7,8]`.)*
+
+## 3.2 Removing Elements
+
+```{r}
+# Remove 'sample_mat' from the list
+li$sample_mat <- NULL
+li
+```
+
+Setting an element to `NULL` **deletes** it.
+
+## 3.3 Updating Elements
+
+```{r}
+# Modify 'sample_df' by adding a new column
+li$sample_df$age <- c(25, 30, 34, 45, 56, 32, 12, 12, 34, 34,
+                      45, 66, 76, 22, 29)
+li$sample_df
+```
+
+*(We’ve added an `age` column to the `sample_df` inside `li`.)*
+
+---
+
+# 4. Advanced List Operations
+
+Lists offer powerful ways to manipulate data, including applying functions across elements.
+
+## 4.1 Applying Functions: `lapply` and `sapply`
+
+- **`lapply(list, FUN)`** returns a list of results.  
+- **`sapply(list, FUN)`** attempts to simplify the result to a vector or matrix if possible.
+
+```{r}
+# Length of each element
+lapply(li, length)
+
+# Mean of each numeric element (returns NA for non-numeric)
+sapply(li, function(x) if (is.numeric(x)) mean(x) else NA) # this may be hard for beginners but do not worry
+```
+
+Here's what the code does step by step:
+
+- `sapply(li, ...)`: The `sapply()` function in R applies a function to each element of the list `li` and tries to simplify the result into a vector or matrix if possible.
+- Anonymous function: The function defined as `function(x) if (is.numeric(x)) mean(x) else NA` is run on each element of li.
+- `is.numeric(x)` checks whether the element `x` is numeric.
+- If it is numeric, the function computes `mean(x)`, which returns the average of the numeric values.
+- Otherwise (if the element is not numeric), it returns `NA` (a missing value).
+
+**Result**: sapply() creates a vector (or a one-dimensional structure) that contains:
+- The mean of each numeric element from the list.
+- NA for elements that are not numeric.
+
+
+> **Note**: An anonymous function (also called a lambda function in some languages) is a function that is defined without a name. Instead of declaring a function with a specific name (e.g., mean_function <- function(x) mean(x)), you create a function inline and pass it directly to a higher-order function (like sapply() in R). It is called “anonymous” because it does not need a separate name in your code; it simply defines the instructions (or body) that should be applied to each element when called.
+
+
+## 4.2 Unlisting a List
+
+- **`unlist(li)`** flattens all list elements into a single vector.
+
+```{r}
+unlisted_li <- unlist(li)
+unlisted_li
+```
+
+## 4.3 Checking Structure
+
+- **`str(li)`** provides a structured overview of the list.
+
+```{r}
+str(li)
+str(unlisted_li)
+```
+
+---
+
+# 5. Exercises
+
+Below are some exercises to help you practice. 
+
+---
+
+## Exercise 1: Creating a Complex List
+
+**Question**  
+Create a list named `my_list` with the following elements:
+
+1. A numeric vector `numbers` = (10, 20, 30, 40, 50)  
+2. A character vector `letters_vec` = ("a", "b", "c", "d", "e")  
+3. A data frame `df_sample` taken from `mtcars`, but only columns `mpg` and `cyl`.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 2: Accessing List Elements
+
+**Question**  
+Using `my_list` from Exercise 1:
+
+1. Access the `numbers` vector with single brackets.  
+2. Access the `letters_vec` vector with double brackets.  
+3. Access the `mpg` column from `df_sample` using the `$` operator.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 3: Modifying List Elements
+
+**Question**  
+Update `my_list` by:
+
+1. Appending `60` to `numbers`.  
+2. Adding `"f"` to `letters_vec`.  
+3. Adding a new column `hp` to `df_sample` from the same `mtcars` data set.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 4: Removing Elements
+
+**Question**  
+Remove the `letters_vec` element from `my_list`.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 5: Applying Functions to List Elements
+
+**Question**  
+Use `lapply()` to compute the **length** of each element in `my_list`. Then, use `sapply()` to compute the **mean** of each numeric element, returning `NA` otherwise.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 6: Unlisting a List
+
+**Question**  
+Convert `my_list` into a single vector with `unlist()` and assign it to `flattened_list`.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 7: Understanding List Structure
+
+**Question**  
+Use `str()` to display the structure of `my_list`.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 8: Nested Lists
+
+**Question**  
+Create a nested list named `nested_li` with:
+
+- The entire `my_list` as its first element  
+- A new list containing a logical vector `log_vec = c(TRUE, FALSE, TRUE)`
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 9: Accessing Nested List Elements
+
+**Question**  
+From `nested_li`, access the `log_vec` vector.
+
+```{r}
+# Your code here:
+```
+
+---
+
+## Exercise 10: Combining Multiple Lists
+
+**Question**  
+Create another list, `additional_li`, containing:
+1. A 3x3 matrix `matrix_sample` (values 1 to 9)  
+2. A data frame `df_additional` with columns `Name` and `Age` for at least three entries  
+
+Then combine `nested_li` and `additional_li` into a new list `combined_li` using `c()`.
+
+```{r}
+# Your code here:
+```
+
+
+
+---
+
+# 6. Summary
+
+In this session, you learned how to:
+
+- **Create** lists that hold different data structures  
+- **Name** and **access** elements in multiple ways (`[]`, `[[ ]]`, `$`)  
+- **Modify** lists by adding, removing, or updating elements  
+- Use **`lapply()`** and **`sapply()`** to apply functions to list elements  
+- **Unlist** a list into a single vector  
+
+Lists are critical when dealing with **heterogeneous** or **hierarchical** data. Mastery of lists allows you to handle complex workflows in R, especially when you combine them with other data structures and modern packages like **purrr** or **tidyverse** libraries.
+
+## Next Steps
+
+- Continue to **practice** with lists by creating, modifying, and applying functions to them.  
+- Explore more advanced list functions in R, such as **nested list comprehensions** with `purrr`.  
+- Integrate lists with data frames and other structures for more **comprehensive data analyses**.
+
+---
+
+# References
+
+- [R Documentation: `list`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/list)  
+- [R for Data Science](https://r4ds.had.co.nz/)  
+- [Understanding Lists in R](https://www.statmethods.net/input/lists.html)  
+- [Advanced List Operations with purrr](https://purrr.tidyverse.org/)  
+
+**Additional Resources**  
+- [RStudio Cheatsheets](https://rstudio.com/resources/cheatsheets/)  
+- [Data Manipulation with dplyr](https://dplyr.tidyverse.org/)  
+- [Swirl: Interactive R Tutorials](https://swirlstats.com/students.html)
