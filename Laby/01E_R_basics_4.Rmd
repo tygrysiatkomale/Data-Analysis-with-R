@@ -219,7 +219,11 @@ Create a list named `my_list` with the following elements:
 3. A data frame `df_sample` taken from `mtcars`, but only columns `mpg` and `cyl`.
 
 ```{r}
-# Your code here:
+numbers <- c(10, 20, 30, 40, 50)
+letters_vec <- c("a", "b", "c", "d", "e")
+df_sample <- mtcars[c("mpg", "cyl")]
+my_list <- list(numbers = numbers, letters_vec = letters_vec, df_sample = df_sample)
+my_list
 ```
 
 
@@ -235,7 +239,9 @@ Using `my_list` from Exercise 1:
 3. Access the `mpg` column from `df_sample` using the `$` operator.
 
 ```{r}
-# Your code here:
+my_list["numbers"]
+my_list["letters_vec"]
+my_list$df_sample$mpg
 ```
 
 
@@ -251,7 +257,10 @@ Update `my_list` by:
 3. Adding a new column `hp` to `df_sample` from the same `mtcars` data set.
 
 ```{r}
-# Your code here:
+my_list$numbers <- c(my_list$numbers, 60)
+my_list$letters_vec <- c(my_list$letters_vec, "f")
+my_list$df_sample$hp <- mtcars$hp
+my_list
 ```
 
 
@@ -263,7 +272,8 @@ Update `my_list` by:
 Remove the `letters_vec` element from `my_list`.
 
 ```{r}
-# Your code here:
+my_list$letters_vec <- NULL
+my_list
 ```
 
 
@@ -275,7 +285,8 @@ Remove the `letters_vec` element from `my_list`.
 Use `lapply()` to compute the **length** of each element in `my_list`. Then, use `sapply()` to compute the **mean** of each numeric element, returning `NA` otherwise.
 
 ```{r}
-# Your code here:
+
+
 ```
 
 
