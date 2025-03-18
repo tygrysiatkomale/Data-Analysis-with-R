@@ -1,0 +1,444 @@
+---
+title: "05E - Programming 1: Conditional Statements in R"
+author: "Piotr Kosowski"
+date: "2025-03-08"
+---
+
+# Introduction
+
+**Conditional statements** are crucial in programming because they let your code make decisions. In R, the **`if`**, **`else if`**, and **`else`** statements enable you to branch the flow of execution based on whether certain **conditions** are met. By mastering these statements, you can write scripts that adapt to a variety of scenarios.
+
+This notebook covers:
+
+1. Basic syntax of `if`, `else`, and `else if`  
+2. Common usage examples and best practices  
+3. Additional topics like **nested `if`** statements, logical operators, and vectorized conditions  
+4. Exercises to reinforce your knowledge  
+
+---
+
+# 1. Understanding Conditional Statements
+
+## 1.1 The `if` Statement
+
+- Executes a block of code **only** if a given condition is `TRUE`.
+- Basic syntax:
+
+  ```r
+  if (condition) {
+    # Code runs if condition is TRUE
+  }
+  ```
+
+### Example
+
+```{r}
+temp <- 28
+
+if (temp > 25) {
+  message("It's quite warm!") # you may also use `print()` function
+}
+```
+
+*(In this example, the message prints only if `temp > 25`.)*
+
+---
+
+## 1.2 The `else` Statement
+
+- Provides an **alternative** code block that runs **only if** the `if` condition is `FALSE`.
+- Syntax:
+
+  ```r
+  if (condition) {
+    # Runs if condition is TRUE
+  } else {
+    # Runs if condition is FALSE
+  }
+  ```
+
+### Example
+
+```{r}
+temp <- 20
+
+if (temp > 25) {
+  message("Warm day!")
+} else {
+  message("Not very warm today.")
+}
+```
+
+*(Either the `if` block or the `else` block will execute, but not both.)*
+
+---
+
+## 1.3 The `else if` Statement
+
+- Allows you to check **multiple conditions** in sequence.
+- Syntax:
+
+  ```r
+  if (condition1) {
+    # Runs if condition1 is TRUE
+  } else if (condition2) {
+    # Runs if condition2 is TRUE
+  } else {
+    # Runs if none of the above conditions are TRUE
+  }
+  ```
+
+### Example
+
+```{r}
+temp <- 14
+
+if (temp >= 30) {
+  message("Hot outside!")
+} else if (temp >= 20) {
+  message("Nice outside!")
+} else if (temp >= 15) {
+  message("It's a bit cool outside!")
+} else {
+  message("It's really cold outside!")
+}
+```
+
+*(The first matching condition triggers its code; subsequent conditions are skipped.)*
+
+---
+
+# 2. Practical Examples
+
+## 2.1 Basic `if` Statement
+
+```{r}
+temp <- 45
+hot  <- FALSE
+
+if (temp > 30) {
+  hot <- TRUE
+}
+
+hot
+```
+
+- If `temp > 30`, `hot` becomes `TRUE`, otherwise it remains `FALSE`.
+
+---
+
+## 2.2 Using `else`
+
+```{r}
+temp <- 20
+
+if (temp > 30) {
+  print("Hot outside!")
+} else {
+  print("It's not too hot today.")
+}
+```
+
+- One of the two branches always executes.
+
+---
+
+## 2.3 Using `else if`
+
+```{r}
+temp <- 24
+
+if (temp >= 30) {
+  print("Hot outside!")
+} else if (temp < 30 & temp >= 20) {
+  print("Nice outside!")
+} else if (temp < 20 & temp >= 14) {
+  print("It's cooler outside!")
+} else {
+  print("It's really cold outside!")
+}
+```
+
+- Checks multiple ranges in a structured way.
+
+---
+
+## 2.4 Example: Conditional Reporting Based on Sales
+
+```{r}
+ham    <- 10
+cheese <- 10
+report <- "blank"
+
+if (ham >= 10 & cheese >= 10) {
+  report <- "Strong sales of both items"
+} else if (ham == 0 & cheese == 0) {
+  report <- "Nothing sold!"
+} else {
+  report <- "We had some sales"
+}
+
+print(report)
+```
+
+---
+
+# 3. Additional Examples and Explanations
+
+## 3.1 Nested `if` Statements
+
+You can nest `if` statements inside others to check conditions in **multiple levels**:
+
+```{r}
+score <- 85
+grade <- NA
+
+if (score >= 90) {
+  grade <- "A"
+} else {
+  if (score >= 80) {
+    grade <- "B"
+  } else {
+    grade <- "C"
+  }
+}
+
+grade
+```
+
+---
+
+## 3.2 Logical Operators in Conditions
+
+In R, logical operators include:
+- `&` (AND)
+- `|` (OR)
+- `!` (NOT)
+
+**Be mindful** that `&` and `|` are “vectorized,” while `&&` and `||` are short-circuit operators used for single logical comparisons in control statements.
+
+```{r}
+age    <- 25
+income <- 50000
+
+if (age > 18 & income > 30000) {
+  eligibility <- "Eligible for loan"
+} else {
+  eligibility <- "Not eligible for loan"
+}
+
+eligibility
+```
+
+---
+
+## 3.3 Comparing Multiple Variables
+
+```{r}
+x <- 10
+y <- 20
+
+if (x < y) {
+  result <- "x is less than y"
+} else {
+  result <- "x is not less than y"
+}
+
+result
+```
+
+*(This pattern is common in sorting or ranking tasks.)*
+
+---
+
+## 3.4 Vectorized Conditional Logic: `ifelse()`
+
+Although not identical to `if`, `else if`, `else`, the **`ifelse()`** function is **vectorized** and can handle element-wise checks in a single call.
+
+```{r}
+temps <- c(10, 25, 35)
+
+# Vectorized approach
+weather_category <- ifelse(temps > 30, "Hot", "Cool or Warm")
+weather_category
+```
+
+*(A more advanced topic, but worth noting for efficiency in data transformations.)*
+
+---
+
+# 4. Exercises
+
+Below are practice tasks to help you solidify your grasp of conditional statements.
+
+---
+
+### Exercise 1: Basic `if` Statement
+
+**Question**  
+Write a script that prints `"Hello"` if the variable `x` is equal to 1.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+### Exercise 2: Even Number Check
+
+**Question**  
+Write a script that prints `"Even Number"` if the variable `x` is an even number; otherwise print `"Not Even"`.
+
+```{r}
+# Your code here:
+```
+
+---
+
+### Exercise 3: Matrix Check
+
+**Question**  
+Write a script that prints `"Is a Matrix"` if `x` is a matrix; otherwise print `"Not a Matrix"`.  
+*(Hint: see `?is.matrix`.)*
+
+```{r}
+x <- matrix(1:4, nrow = 2)
+# Your code here:
+```
+
+---
+
+### Exercise 4: Sorting Elements with Conditional Logic
+
+**Question**  
+Given a numeric vector `v` of length 3, print the elements in **descending** order (high to low). Use `if`, `else if`, and `else` statements for your logic. (Note: there are multiple ways to do this; this is just for practice.)
+
+```{r}
+# Example: v <- c(5, 2, 9)
+# Your code here:
+```
+
+
+---
+
+### Exercise 5: Finding the Maximum Element
+
+**Question**  
+Write a script that uses `if`, `else if`, and `else` statements to print the maximum element in a 3-element numeric vector.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+### Exercise 6: Nested Conditions
+
+**Question**  
+Write a script that categorizes a person's age into:
+- "Child" for age < 13
+- "Teenager" for 13 <= age < 18
+- "Adult" for 18 <= age < 65
+- "Senior" for age >= 65
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+### Exercise 7: Grade Assignment
+
+**Question**  
+Assign grades based on the variable `score`:
+- "A" for scores >= 90
+- "B" for 80 <= scores < 90
+- "C" for 70 <= scores < 80
+- "D" for scores < 70
+
+```{r}
+# Your code here:
+```
+
+---
+
+### Exercise 8: Positive, Negative, or Zero
+
+**Question**  
+Check if a number `n` is positive, negative, or zero and print a message accordingly.
+
+```{r}
+# Your code here:
+```
+
+---
+
+### Exercise 9: Divisibility Check
+
+**Question**  
+Check if a number `n` is:
+- Divisible by both 3 and 5
+- Divisible by 3 only
+- Divisible by 5 only
+- Neither
+
+Print an appropriate message.
+
+```{r}
+# Your code here:
+```
+
+---
+
+### Exercise 10: Age and Income Eligibility
+
+**Question**  
+A person is eligible for a senior discount if they are at least 65 years old **and** have an income below \$50,000. Write a script checking these conditions and printing the result.
+
+```{r}
+# Your code here:
+```
+
+---
+
+# 5. Summary
+
+In this session, we explored:
+
+- **`if`**, **`else if`**, and **`else`** statements for branching execution flow  
+- **Nested conditions** for more complex logic  
+- **Logical operators** (`&`, `|`, `!`)  
+- **Vectorized approach** with `ifelse()` (briefly)
+
+**Key Takeaways**:
+
+- **`if`** runs code if a condition is `TRUE`; **`else`** runs code otherwise.  
+- **`else if`** lets you chain multiple conditions.  
+- Nested `if` or carefully structured `else if` blocks help handle complex decisions.  
+
+**Next Steps**:
+
+1. **Practice** writing conditional statements to handle real-world logic.  
+2. Experiment with **vectorized** operations using `ifelse()` for data manipulation.  
+3. Explore loops (`for`, `while`) combined with `if` statements for iterative logic.  
+
+---
+
+# References
+
+- [R Documentation: `if`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/if)  
+- [R for Data Science](https://r4ds.had.co.nz/) (Chapter on Programming)  
+- [Advanced Control Structures in R](https://cran.r-project.org/doc/manuals/r-release/R-intro.html#Control-structures)  
+- [Logical Operators in R](https://stat.ethz.ch/R-manual/R-devel/library/base/html/Logic.html)
+
+---
+
+# Additional Resources
+
+- **RStudio Cheatsheets**:  
+  [RStudio Cheatsheets](https://rstudio.com/resources/cheatsheets/)  
+- **Swirl - Learn R in R**:  
+  [Swirl (interactive tutorials)](https://swirlstats.com/students.html)
