@@ -285,8 +285,8 @@ my_list
 Use `lapply()` to compute the **length** of each element in `my_list`. Then, use `sapply()` to compute the **mean** of each numeric element, returning `NA` otherwise.
 
 ```{r}
-
-
+lapply(my_list, length)
+sapply(my_list, mean)
 ```
 
 
@@ -298,7 +298,8 @@ Use `lapply()` to compute the **length** of each element in `my_list`. Then, use
 Convert `my_list` into a single vector with `unlist()` and assign it to `flattened_list`.
 
 ```{r}
-# Your code here:
+flattened_list <- unlist(my_list)
+flattened_list
 ```
 
 
@@ -310,7 +311,7 @@ Convert `my_list` into a single vector with `unlist()` and assign it to `flatten
 Use `str()` to display the structure of `my_list`.
 
 ```{r}
-# Your code here:
+str(my_list)
 ```
 
 
@@ -325,7 +326,10 @@ Create a nested list named `nested_li` with:
 - A new list containing a logical vector `log_vec = c(TRUE, FALSE, TRUE)`
 
 ```{r}
-# Your code here:
+log_vec <- c(TRUE, FALSE, TRUE)
+nested_li <- list(my_list, list(log_vec))
+nested_li
+
 ```
 
 
@@ -337,7 +341,7 @@ Create a nested list named `nested_li` with:
 From `nested_li`, access the `log_vec` vector.
 
 ```{r}
-# Your code here:
+nested_li[[2]][[1]]
 ```
 
 ---
@@ -352,7 +356,14 @@ Create another list, `additional_li`, containing:
 Then combine `nested_li` and `additional_li` into a new list `combined_li` using `c()`.
 
 ```{r}
-# Your code here:
+matrix_sample <- matrix(1:9, nrow = 3)
+df_additional <- data.frame(
+  Name <- c('Alice', 'Max', 'John'),
+  Age <- c(11, 14, 18)
+)
+additional_li <- list(matrix_sample, df_additional)
+combined_li <- c(nested_li, additional_li)
+combined_li
 ```
 
 
