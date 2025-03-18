@@ -279,7 +279,10 @@ Below are practice tasks to help you solidify your grasp of conditional statemen
 Write a script that prints `"Hello"` if the variable `x` is equal to 1.
 
 ```{r}
-# Your code here:
+x <- 2
+if (x == 1){
+  print("Hello")
+}
 ```
 
 
@@ -291,7 +294,11 @@ Write a script that prints `"Hello"` if the variable `x` is equal to 1.
 Write a script that prints `"Even Number"` if the variable `x` is an even number; otherwise print `"Not Even"`.
 
 ```{r}
-# Your code here:
+if (x %% 2 == 1){
+  print("Not even")
+} else {
+  print("Even")
+}
 ```
 
 ---
@@ -304,7 +311,13 @@ Write a script that prints `"Is a Matrix"` if `x` is a matrix; otherwise print `
 
 ```{r}
 x <- matrix(1:4, nrow = 2)
-# Your code here:
+
+if (is.matrix(x)){
+  print("Is a Matrix")
+} else {
+  print("Not a Matrix")
+}
+
 ```
 
 ---
@@ -315,8 +328,8 @@ x <- matrix(1:4, nrow = 2)
 Given a numeric vector `v` of length 3, print the elements in **descending** order (high to low). Use `if`, `else if`, and `else` statements for your logic. (Note: there are multiple ways to do this; this is just for practice.)
 
 ```{r}
-# Example: v <- c(5, 2, 9)
-# Your code here:
+
+
 ```
 
 
@@ -328,7 +341,8 @@ Given a numeric vector `v` of length 3, print the elements in **descending** ord
 Write a script that uses `if`, `else if`, and `else` statements to print the maximum element in a 3-element numeric vector.
 
 ```{r}
-# Your code here:
+
+
 ```
 
 
