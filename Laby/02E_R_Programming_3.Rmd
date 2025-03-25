@@ -1,0 +1,276 @@
+---
+title: "07E Programming 3"
+author: "Piotr Kosowski"
+date: "2024-09-28"
+---
+
+# while loops
+
+While loops are fundamental control structures in R that allow you to execute a block of code repeatedly as long as a specified condition remains `TRUE`. They are particularly useful for scenarios where the number of iterations is not known beforehand and depends on dynamic conditions during runtime.
+
+## Understanding `while` Loops
+
+The basic syntax of a `while` loop in R is as follows:
+
+```
+while (condition) {
+    # Code to execute while the condition is TRUE
+}
+```
+
+- **condition**: A logical expression that is evaluated before each iteration of the loop. If the condition is `TRUE`, the loop continues; if `FALSE`, the loop terminates.
+- **Code Block**: The set of statements that will be executed as long as the condition holds `TRUE`.
+
+### Important Considerations
+
+- **Termination Condition**: It's crucial to ensure that the condition will eventually become `FALSE`. Failing to do so can result in an infinite loop, which can freeze your R session. Use `Ctrl + C` in the R console or `Esc` in RStudio to interrupt an infinite loop.
+- **Variable Update**: Typically, a variable involved in the condition should be updated within the loop to eventually meet the termination condition.
+
+## Practical Examples
+
+### Example 1: Basic `while` Loop
+
+This example demonstrates a simple `while` loop that increments a variable until it reaches a specified value.
+
+```{r}
+
+# Initialize variables
+x <- 0
+
+# Execute the loop while x is less than 10
+while(x > 10) {
+    cat('x is currently:', x, '\n')
+    print('x is still less than 10, adding 1 to x')
+    
+    # Increment x by 1
+    x <- x + 1
+}
+
+```
+
+**Explanation:**
+- The loop starts with `x` equal to 0.
+- As long as `x` is less than 10, the loop prints the current value of `x` and a message.
+- `x` is then incremented by 1 in each iteration.
+- Once `x` reaches 10, the condition `x < 10` becomes `FALSE`, and the loop terminates.
+
+### Example 2: Incorporating `if` Statements Within a `while` Loop
+
+Integrating conditional statements within a loop allows for more complex control flows.
+
+```{r}
+
+# Initialize variables
+x <- 0
+
+# Execute the loop while x is less than 10
+while(x < 10) {
+    cat('x is currently:', x, '\n')
+    print('x is still less than 10, adding 1 to x')
+    
+    # Increment x by 1
+    x <- x + 1
+    
+    # Check if x has reached 10
+    if(x == 10) {
+        print("x is equal to 10! Terminating loop")
+    }
+}
+
+```
+
+**Explanation:**
+- Similar to the previous example, but an `if` statement checks if `x` has reached 10.
+- When `x` equals 10, a message is printed. However, the loop still relies on the `while` condition to terminate.
+
+### Example 3: Using `break` to Exit a `while` Loop Early
+
+The `break` statement allows you to exit a loop immediately, regardless of the loop's condition.
+
+```{r}
+
+# Initialize variables
+x <- 0
+
+# Execute the loop while x is less than 10
+while(x < 10) {
+    cat('x is currently:', x, '\n')
+    print('x is still less than 10, adding 1 to x')
+    
+    # Increment x by 1
+    x <- x + 1
+    
+    # Check if x has reached 10
+    if(x == 10) {
+        print("x is equal to 10!")
+        break
+        print("I will also print, woohoo!") # This line will not execute
+    }
+}
+
+```
+
+**Explanation:**
+- The loop behaves similarly to the previous example.
+- When `x` equals 10, a message is printed, and the `break` statement immediately exits the loop.
+- Any code following `break` within the loop is not executed.
+
+### Example 4: Using `next` to Skip Iterations
+
+The `next` statement allows you to skip the current iteration and proceed to the next one, effectively bypassing any subsequent code within the loop for that iteration.
+
+```{r}
+
+# Vector to iterate over
+x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+
+# Iterate over each element in the vector
+for(i in x) {
+    # Skip odd numbers
+    if(i %% 2 != 0) {
+        next
+    }
+    
+    # Print even numbers
+    print(i)
+}
+
+```
+
+**Explanation:**
+- The loop iterates over each element in vector `x`.
+- If the current element `i` is odd (`i %% 2 != 0`), the `next` statement skips the rest of the loop's body and moves to the next iteration.
+- Only even numbers are printed.
+
+## Best Practices for Using `while` Loops
+
+1. **Ensure Termination**: Always make sure that the loop has a clear termination condition to prevent infinite loops.
+2. **Update Variables Appropriately**: Variables involved in the loop's condition should be updated within the loop to eventually meet the termination condition.
+3. **Use Breaks Wisely**: While `break` can be useful for exiting loops early, use it judiciously to maintain code readability and flow.
+4. **Avoid Complex Logic**: Try to keep the logic within loops as simple as possible to enhance readability and maintainability.
+5. **Consider Alternatives**: Sometimes, vectorized operations or `apply` family functions can replace loops for better performance and cleaner code.
+
+## Exercises
+
+Practice is essential to reinforce your understanding of `while` loops in R. Complete the following exercises by filling in the R code where indicated.
+
+### Exercise 1: Break on High Random Number
+
+**Question:** Write a `while` loop that prints out standard random normal numbers (use `rnorm()`) but stops (breaks) if you get a number bigger than 1.
+
+```{r}
+
+
+```
+
+### Exercise 2: Skip Negative Numbers
+
+**Question:** Using `next`, adapt the loop from the last exercise so that it doesn’t print negative numbers.
+
+```{r}
+
+
+```
+
+### Exercise 3: Counting Terms to Reach a Product Threshold
+
+**Question:** Use a `while` loop to investigate the number of terms required before the product \(1 \times 2 \times 3 \times 4 \times \dots\) reaches above 10 million.
+
+```{r}
+
+
+```
+
+
+
+### Exercise 4: Summing User Input Until a Condition
+
+**Question:** Write a `while` loop that continuously prompts the user to enter a number. The loop should terminate when the user enters a negative number. Keep track of the sum of all entered numbers (excluding the negative number).
+`number <- as.numeric(readline(prompt = "Give a number: "))`
+
+```{r}
+
+
+```
+
+**Note:** This script requires user interaction and may not work as expected in non-interactive environments.
+
+### Exercise 5: Generating a Sequence Until a Condition is Met
+
+**Question:** Write a `while` loop that generates random numbers between 0 and 1 using `runif(1)` and appends them to a vector. The loop should stop when the cumulative sum of the vector exceeds 5.
+
+```{r}
+
+
+```
+
+### Exercise 6: Find the First Number Greater Than a Threshold
+
+**Question:** Write a `while` loop that generates random numbers between 0 and 1 using `runif(1)` and stops when a number greater than 0.9 is generated. Print each generated number.
+
+```{r}
+
+
+```
+
+### Exercise 7: Loop Through a List with Conditions
+
+**Question:** Create a list of mixed data types (numeric, character, logical). Use a `while` loop to iterate through the list and print only the numeric elements.
+
+```{r}
+
+
+```
+
+### Exercise 8: Accumulate Even Numbers Until a Limit
+
+**Question:** Write a `while` loop that accumulates even numbers starting from 2, adding 2 in each iteration, until the accumulated sum exceeds 100. Print each even number as it's added.
+
+```{r}
+
+
+```
+
+### Exercise 9: Repeating a Task with Limited Attempts
+
+**Question:** Write a `while` loop that allows a user to guess a secret number (e.g., 7). The user has up to 5 attempts to guess correctly. After each incorrect guess, inform the user and decrement the remaining attempts. If the user guesses correctly, congratulate them and exit the loop. If the user fails to guess within 5 attempts, reveal the secret number.
+
+```{r}
+
+
+```
+
+**Note:** This script requires user interaction and may not work as expected in non-interactive environments.
+
+### Exercise 10: Generate Fibonacci Sequence Until a Limit
+
+**Question:** Write a `while` loop that generates the Fibonacci sequence until the next number in the sequence exceeds 1000. Store the sequence in a vector and print it at the end.
+
+```{r}
+
+
+```
+
+
+## Summary
+
+In this session, we explored the fundamentals of `while` loops in R, including their syntax, usage, and best practices. We examined practical examples demonstrating how to implement `while` loops for various tasks, integrated conditional statements within loops, and utilized loop control mechanisms like `break` and `next`. Through the exercises, you have practiced creating and manipulating `while` loops to solve real-world problems, enhancing your programming proficiency in R.
+
+**Next Steps:**
+- Continue practicing with `while` loops to build confidence.
+- Explore other looping constructs in R, such as `for` loops, `repeat` loops, and vectorized operations using the `apply` family of functions.
+- Learn how to optimize loops for better performance, especially when dealing with large datasets.
+- Integrate loops with other control structures and functions to create more complex and efficient R scripts.
+
+# References
+
+- [R Documentation: while](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/while)
+- [R for Data Science](https://r4ds.had.co.nz/)
+- [Advanced Control Structures in R](https://cran.r-project.org/doc/manuals/r-release/R-intro.html#Control-structures)
+- [Logical Operators in R](https://stat.ethz.ch/R-manual/R-devel/library/base/html/Logic.html)
+
+# Additional Resources
+
+- **RStudio Cheatsheets:** Comprehensive guides for various R tasks.
+  - [RStudio Cheatsheets](https://rstudio.com/resources/cheatsheets/)
+

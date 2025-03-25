@@ -1,0 +1,335 @@
+---
+title: "Data Input & Output"
+author: "Piotr Kosowski"
+date: "2025-03-08"
+---
+
+# Data Input & Output in R
+
+Efficient data **input** and **output** (I/O) are crucial for any data analysis workflow in R. This notebook covers:
+
+1. Creating data frames  
+2. Reading and writing different file types (CSV, Excel, JSON, etc.)  
+3. Using **`readr`** for enhanced performance  
+4. Using **`rio`** for a universal import/export interface  
+5. Practice exercises  
+
+---
+
+# 1. Creating a Data Frame
+
+A **data frame** is a primary structure for storing tabular data in R.
+
+```{r}
+library(tidyverse)  # For readr and general data wrangling
+```
+
+```{r}
+# Create a vector of lowercase letters from 'a' to 'j'
+let <- letters[1:10]
+
+# Create a numeric vector from 1 to 10
+num <- 1:10
+
+# Create a mixed vector by concatenating numbers and letters
+mix <- paste0(num, let)
+
+# Combine into a data frame
+df <- data.frame(
+  letters = let,
+  numbers = num,
+  mixed   = mix
+)
+
+df  # Display the data frame
+```
+
+**Explanation**:  
+- `letters[1:10]` → first 10 lowercase letters.  
+- `1:10` → numeric vector from 1 to 10.  
+- `paste0(num, let)` → merges numbers and letters without a separator.  
+- `data.frame(...)` → combines these into a data frame with columns `letters`, `numbers`, and `mixed`.
+
+---
+
+# 2. Writing and Reading Data (Base R)
+
+Once you have a data frame, you often need to **save** it for later or **share** it with others. Base R provides straightforward functions for CSV files:
+
+## 2.1 Writing Data to CSV
+
+```{r}
+# Write 'df' to a CSV file named 'data1.csv' without row names
+write.csv(df, "data1.csv", row.names = FALSE)
+```
+
+- `write.csv()` exports a data frame.  
+- `row.names = FALSE` omits row numbers in the file.
+
+## 2.2 Reading Data from CSV
+
+```{r}
+# Read 'data1.csv' into a new data frame
+df_read <- read.csv("data1.csv")
+df_read
+```
+
+- `read.csv()` imports from a CSV file.  
+- `df_read` should match the original `df`.
+
+---
+
+# 3. Reading from Online Sources
+
+You can directly read data from **online** repositories:
+
+```{r}
+# Example: read CSV from a GitHub raw link
+df_2 <- read.csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-02-28/language_countries.csv")
+df_2
+```
+
+- `read.csv()` accepts a **URL** to fetch data remotely.  
+- Great for frequently updated datasets without manual downloads.
+
+---
+
+# 4. Using `readr` (Tidyverse Approach)
+
+While base R I/O functions are powerful, **`readr`** (part of the tidyverse) provides:
+
+- Faster performance  
+- Smarter defaults  
+- More flexible parsing  
+
+## 4.1 Installing & Loading `readr`
+
+```{r}
+# Check and install if needed
+if (!requireNamespace("readr", quietly = TRUE)) {
+  install.packages("readr")
+}
+library(readr)
+```
+
+*(If you already have `tidyverse`, you likely have `readr` as well.)*
+
+---
+
+## 4.2 Writing Data with `write_csv()`
+
+```{r}
+write_csv(df_2, "languages.csv")
+```
+
+- Similar to `write.csv()`, but faster and no row names by default.
+
+## 4.3 Reading Data with `read_csv()`
+
+```{r}
+df_3 <- read_csv("languages.csv")
+df_3
+```
+
+- `read_csv()` automatically infers column types more intelligently than `read.csv()`.
+
+## 4.4 Skipping Rows
+
+```{r}
+df_skipped <- read_csv("languages.csv", skip = 4)
+df_skipped
+```
+
+- `skip = 4` instructs R to ignore the first 4 rows (useful if your data file starts with metadata or notes).
+
+---
+
+# 5. Using the `rio` Package (Universal Import/Export)
+
+**`rio`** aims to simplify data I/O by providing **one** function for multiple formats:
+
+1. **`import()`** to read data.  
+2. **`export()`** to write data.
+
+## 5.1 Installing & Loading `rio`
+
+```{r}
+if (!requireNamespace("rio", quietly = TRUE)) {
+  install.packages("rio")
+}
+library(rio)
+```
+
+## 5.2 Importing Data with `rio::import()`
+
+`import()` automatically detects the file format based on the extension:
+
+```{r}
+# Suppose we have 'data1.csv'
+df_rio <- import("data1.csv")
+df_rio
+```
+
+**No** need to call different functions (`read.csv`, `read_excel`, etc.)—`import()` figures it out.
+
+## 5.3 Exporting Data with `rio::export()`
+
+Similarly, `export()` auto-detects output format by extension:
+
+```{r}
+# Export 'df_rio' to different formats easily
+export(df_rio, "output.xlsx")  # Excel
+export(df_rio, "output.json")  # JSON
+export(df_rio, "output.csv")  # CSV
+export(df_rio, "output.yaml")  # CSV
+
+```
+
+**Explanation**:  
+- The file extension (e.g. `.xlsx`, `.json`, `.csv`) tells `rio` how to write.
+
+**`rio`** supports a wide range of formats: Stata, SPSS, SAS, Excel, CSV, JSON, Yaml, and more. This unifies reading/writing data under one consistent interface.
+
+---
+
+# 6. Additional Data I/O
+
+## 6.1 Writing Excel Files with `writexl`
+
+```{r}
+if (!requireNamespace("writexl", quietly = TRUE)) {
+  install.packages("writexl")
+}
+library(writexl)
+
+write_xlsx(df_read, "output.xlsx")
+```
+
+- `write_xlsx()` from **`writexl`** creates an Excel file.  
+- No external dependencies on Java or Perl.
+
+## 6.2 Writing JSON Files with `jsonlite`
+
+```{r}
+if (!requireNamespace("jsonlite", quietly = TRUE)) {
+  install.packages("jsonlite")
+}
+library(jsonlite)
+
+toJSON(df_read, pretty = TRUE, auto_unbox = TRUE) %>% 
+  writeLines("output.json")
+```
+
+- `toJSON()` from **`jsonlite`** encodes the data frame as JSON.  
+- `writeLines()` writes it to disk.
+
+---
+
+## 6.3 Reading Excel Files with `readxl`
+
+```{r}
+if (!requireNamespace("readxl", quietly = TRUE)) {
+  install.packages("readxl")
+}
+library(readxl)
+
+df_excel <- read_excel("output.xlsx", sheet = "Sheet1")
+df_excel
+```
+
+- `read_excel()` from **`readxl`** imports Excel sheets.  
+- Good for `.xls` and `.xlsx`.
+
+## 6.4 Reading JSON Files with `jsonlite`
+
+```{r}
+df_json <- fromJSON("output.json")
+df_json
+```
+
+- `fromJSON()` re-creates a data frame or list structure from JSON.
+
+---
+
+# 7. Exercises
+
+Below are practice tasks to strengthen your I/O skills in R.
+
+---
+
+### Exercise 1: Export Data Frame to Excel
+
+**Question**  
+1. Create a data frame with columns:  
+   - `ID` (1 to 5)  
+   - `Name` (any five names)  
+   - `Score` (random integers between 50 and 100)  
+2. Write this data frame to **`students.xlsx`** using the `writexl` or `rio` package.
+
+```{r}
+# Your code here:
+```
+
+---
+
+### Exercise 2: Write and Read a TSV File
+
+**Question**  
+1. Create a data frame with columns `Country`, `Capital`, and `Population` (≥5 rows).  
+2. Write it to `countries.tsv` using **`readr`**’s `write_tsv()`.  
+3. Read it back with `read_tsv()` and display.
+
+```{r}
+# Your code here (writing):
+```
+
+```{r}
+# Your code here (reading):
+```
+
+---
+
+# 8. Summary
+
+In this session, we explored:
+
+1. **Creating data frames**  
+2. **Reading & writing** CSV, Excel, JSON, and more  
+3. The **`readr`** package for faster/better CSV handling  
+4. The **`rio`** package for a **universal** import/export interface  
+5. Additional packages like **`writexl`** and **`jsonlite`**  
+
+**Key Takeaways**:
+
+- Mastering I/O helps you seamlessly integrate R with files and external sources.  
+- **`readr`** is recommended for CSV-based workflows.  
+- **`rio`** unifies many formats under `import()` and `export()`.  
+- Use dedicated packages (`readxl`, `jsonlite`, etc.) for specialized formats.
+
+**Next Steps**:
+
+- Explore advanced data ingestion (e.g., databases, big data)  
+- Learn about data cleaning or transformation **during** import (e.g., skipping rows, parsing columns)  
+- Optimize I/O for large files (chunked reading, parallelization)
+
+---
+
+# References
+
+- [R Documentation: `read.csv`](https://www.rdocumentation.org/packages/utils/topics/read.table)  
+- [R Documentation: `write.csv`](https://www.rdocumentation.org/packages/utils/topics/write.table)  
+- [readr Package Documentation](https://readr.tidyverse.org/)  
+- [rio Package Documentation](https://github.com/leeper/rio)  
+- [readxl Package](https://readxl.tidyverse.org/)  
+- [jsonlite Package](https://cran.r-project.org/web/packages/jsonlite/)  
+- [writexl Package](https://cran.r-project.org/web/packages/writexl/)  
+- [R for Data Science (Import Chapter)](https://r4ds.had.co.nz/data-import.html)
+
+---
+
+# Additional Resources
+
+- **RStudio Cheatsheets**:  
+  [RStudio Cheatsheets](https://rstudio.com/resources/cheatsheets/)  
+- **Swirl - Learn R in R**:  
+  [Interactive swirl tutorials](https://swirlstats.com/students.html)

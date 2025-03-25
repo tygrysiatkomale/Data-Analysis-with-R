@@ -1,0 +1,423 @@
+---
+title: "08E - Programming: Introduction to Functions in R"
+author: "Piotr Kosowski"
+date: "2025-03-08"
+---
+
+# Introduction to Functions
+
+**Functions** are one of the most essential building blocks in R programming. They allow you to **encapsulate** reusable blocks of code, increasing:
+
+-   **Efficiency**: Write once, reuse many times\
+-   **Modularity**: Break complex tasks into smaller pieces\
+-   **Clarity**: Keep your scripts organized and easier to maintain
+
+A function in R can accept **arguments** (inputs) and can optionally **return** a value (output). This flexibility enables you to automate repetitive tasks and design cleaner, more maintainable code.
+
+------------------------------------------------------------------------
+
+# 1. What is a Function in R?
+
+A function is a named object that **performs a specific task**. R has many built-in functions (e.g., `mean()`, `sum()`, etc.), but you can also create your own.
+
+**General syntax** for defining a function:
+
+``` r
+name_of_function <- function(arg1, arg2, ...) {
+  # Code to execute when the function is called
+  # optionally: return(some_value)
+}
+```
+
+-   **`name_of_function`**: a descriptive identifier\
+-   **`arg1`, `arg2`, ...**: parameters/arguments\
+-   **Code block**: The statements that run whenever you call the function, enclosed in `{ ... }`.
+
+------------------------------------------------------------------------
+
+# 2. Creating Functions in R
+
+We’ll walk through multiple examples to show how functions are defined and used.
+
+## 2.1 Simple Function (No Inputs)
+
+```{r}
+# Define a simple function
+hello <- function() {
+  print("hello!")
+}
+
+# Call the function
+hello()
+```
+
+**Explanation**:\
+- `hello()` prints `"hello!"` every time it’s called.\
+- It has no arguments, so it always behaves the same.
+
+------------------------------------------------------------------------
+
+## 2.2 Function with One Input
+
+```{r}
+helloyou <- function(name) {
+  print(paste("hello", name, "!"))
+}
+
+# Provide an argument
+helloyou("Piotr")
+```
+
+**Explanation**:\
+- `helloyou` takes one parameter `name`.\
+- It uses `paste()` to combine strings and prints the result.\
+- If you call `helloyou("Piotr")`, it prints `"hello Piotr !"`.
+
+------------------------------------------------------------------------
+
+## 2.3 Adding Two Numbers
+
+```{r}
+add_num <- function(num1, num2) {
+  print(num1 + num2)
+}
+
+add_num(5, 10)
+```
+
+**Explanation**:\
+- `add_num` accepts two numbers and prints their sum.\
+- `add_num(5, 10)` prints `15`.
+
+------------------------------------------------------------------------
+
+## 2.4 Functions with Default Values
+
+```{r}
+hello_someone <- function(name = "Janusz") {
+  print(paste("Hello", name))
+}
+
+# Uses default
+hello_someone()
+
+# Overwrite default
+hello_someone("Piotr")
+```
+
+**Explanation**:\
+- If no argument is supplied, `name` defaults to `"Janusz"`.\
+- You can override the default by calling, for instance, `hello_someone("Piotr")`.
+
+------------------------------------------------------------------------
+
+## 2.5 Returning Values
+
+Instead of printing the output directly, functions often **return** a value for further use.
+
+```{r}
+formal <- function(name = "Piotr", title = "Sir") {
+  return(paste(title, name))
+}
+
+# Calling the function
+formal()                 # "Sir Piotr"
+formal("Isaac Newton")   # "Sir Isaac Newton"
+```
+
+**Explanation**:\
+- `return()` explicitly specifies what the function should output.\
+- If you omit `return(...)`, R returns the value of the last expression by default.
+
+### Assigning Return Values
+
+```{r}
+var <- formal("Marie Curie", "Ms.")
+var
+```
+
+-   The returned string `"Ms. Marie Curie"` is saved into `var`.
+
+------------------------------------------------------------------------
+
+# 3. Variable Scope
+
+**Scope** refers to where a variable is **accessible** in your code.
+
+-   **Local Variables**: Defined within a function; accessible only inside that function.\
+-   **Global Variables**: Defined outside any function; accessible from anywhere in the R session.
+
+## 3.1 Local vs. Global Scope
+
+```{r}
+pow_two <- function(input) {
+  res <- input ^ 2
+  return(result)
+}
+
+pow_two(4)    # returns 16
+
+# Attempt to access local variables
+res  # Error: object 'res' not found
+input   # Error: object 'input' not found
+```
+
+**Explanation**:\
+- `res` and `input` exist only inside `pow_two()`. They do not exist in the global environment.
+
+------------------------------------------------------------------------
+
+## 3.2 Accessing Global Variables
+
+```{r}
+v <- "I'm global v"
+stuff <- "I'm global stuff"
+
+fun <- function(stuff) {
+  print(v)    # uses global v
+  stuff <- "Reassign stuff inside func"
+  print(stuff)
+}
+
+fun(stuff)
+stuff  # Still "I'm global stuff" globally
+```
+
+**Explanation**:\
+- `v` and `stuff` are global.\
+- The local parameter `stuff` in `fun()` does not change the global `stuff`.
+
+### Caution: Modifying Global Variables
+
+You *can* change global vars from inside a function with `<<-`, but it’s generally discouraged:
+
+```{r}
+var <- 5
+
+modify_var <- function() {
+  var <<- var * 2
+}
+modify_var()
+var  # now 10
+```
+
+Use this feature sparingly to avoid confusion.
+
+------------------------------------------------------------------------
+
+# 4. Additional Function Concepts
+
+## 4.1 Vectorized Functions
+
+R’s strength lies in **vectorized** operations. Rather than looping manually, you can perform operations on entire vectors at once.
+
+```{r}
+numbers <- 1:5
+squared <- numbers ^ 2
+squared
+```
+
+-   This squares each element, no explicit loop needed, typically faster and cleaner.
+
+------------------------------------------------------------------------
+
+## 4.2 Anonymous Functions
+
+Sometimes you need a **function without a name**, for short, one-off tasks (especially in `apply`, `lapply`, `sapply`, etc.):
+
+```{r}
+numbers <- 1:5
+squared <- sapply(numbers, function(x) x^2)
+squared
+```
+
+**Explanation**:\
+- The anonymous function `function(x) x^2` is defined inline and used by `sapply`.
+
+------------------------------------------------------------------------
+
+## 4.3 Higher-Order Functions
+
+A **higher-order** function takes a function as an argument or returns a function. This can produce more abstract, reusable code.
+
+```{r}
+apply_func <- function(func, num) {
+  return(func(num))
+}
+
+double_num <- function(x) {
+  return(x * 2)
+}
+
+result <- apply_func(double_num, 5)  # 10
+result
+```
+
+------------------------------------------------------------------------
+
+# 5. Exercises
+
+Below are practice exercises to strengthen your understanding of functions in R. You may include or remove **Proposed Solutions** as you see fit.
+
+------------------------------------------------------------------------
+
+### Exercise 1: Product of Two Integers
+
+**Question**\
+Create a function that returns the product of two integers.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 2: Check Integer in Vector
+
+**Question**\
+A function that takes an integer and a vector of integers, returning `TRUE` if the integer is present, otherwise `FALSE`.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 3: Count Occurrences in Vector
+
+**Question**\
+A function that takes an integer and a vector of integers, returning how many times the integer appears.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 4: Minimum Bars of Aluminum
+
+**Question**\
+We have small bars (1kg) and big bars (5kg). Given an integer of requested kilograms, return the **minimum** number of bars needed. For example: - 6 kg → 2 bars (5 + 1) - 17 kg → 5 bars (5 + 5 + 5 + 1 + 1)
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 5: Check if an Integer is Prime
+
+**Question**\
+Create a function that returns `TRUE` if an integer is prime, else `FALSE`.
+
+```{r}
+# Your code here:
+```
+
+
+
+------------------------------------------------------------------------
+
+### Exercise 6: Factorial of a Number
+
+**Question**\
+Create a function that calculates the factorial of a number using a `for` loop.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 7: Greeting Function with Multiple Inputs
+
+**Question**\
+A function that takes `first_name` and `last_name`, returning a personalized greeting.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 8: Area of a Circle
+
+**Question**\
+A function that calculates the area of a circle given its radius `r`. The formula is $\pi r^2$.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+### Exercise 9: Celsius to Fahrenheit
+
+**Question**\
+A function that converts a temperature from Celsius to Fahrenheit using the formula $F = C \times \frac{9}{5} + 32$.
+
+```{r}
+# Your code here:
+```
+
+------------------------------------------------------------------------
+
+### Exercise 10: Length of a String
+
+**Question**\
+A function that takes a string and returns its length using `nchar()`.
+
+```{r}
+# Your code here:
+```
+
+
+------------------------------------------------------------------------
+
+# 6. Summary
+
+In this notebook, we covered:
+
+1.  **Defining Functions** with various arguments (including default values)\
+2.  **Returning Values** vs. printing them\
+3.  **Variable Scope** (local vs. global)\
+4.  Additional concepts (vectorized operations, anonymous functions, higher-order functions)
+
+**Key Takeaways**:
+
+-   Functions in R are declared with `function(...) { ... }`.\
+-   Use `return(...)` to explicitly give back a value.\
+-   Respect **scope**: local variables are internal, global variables are external.\
+-   Vectorized and higher-order functions can simplify code.
+
+**Next Steps**:
+
+1.  Practice writing more functions to solve different tasks.\
+2.  Explore **recursive functions**, **closures**, and **function factories** for more advanced usage.\
+3.  Learn about **package development** to organize related functions into distributable libraries.
+
+------------------------------------------------------------------------
+
+# References
+
+-   [R Documentation: `function`](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/function)\
+-   [R for Data Science (Functions chapter)](https://r4ds.had.co.nz/)\
+-   [Advanced R by Hadley Wickham (Functions section)](https://adv-r.hadley.nz/functions.html)\
+-   [Understanding Function Scope in R](https://www.statmethods.net/advstats/scope.html)
+
+------------------------------------------------------------------------
+
+# Additional Resources
+
+-   **RStudio Cheatsheets**:\
+    [RStudio Cheatsheets](https://rstudio.com/resources/cheatsheets/)\
+-   **Swirl - Learn R in R**:\
+    [Interactive swirl tutorials](https://swirlstats.com/students.html)
+
