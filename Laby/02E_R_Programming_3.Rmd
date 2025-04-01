@@ -279,7 +279,14 @@ while(i <= length(list)){
 Print each even number as it's added.
 
 ```{r}
-
+num <- 2
+sum <- 0
+while(sum < 100){
+  print(sum)
+  sum <- sum + num
+  num <- num + 2
+}
+print(sum)
 
 ```
 
@@ -292,7 +299,25 @@ If the user guesses correctly, congratulate them and exit the loop.
 If the user fails to guess within 5 attempts, reveal the secret number.
 
 ```{r}
+tries <- 0
+number <- sample(0: 100, 1)
 
+while(tries < 5){
+  guess <- as.numeric(readline(prompt = "Guess a number:"))
+  if(guess < number){
+    print("Guess higher")
+  } else if(guess > number){
+    print("Guess lower")
+  } else if(guess == number){
+    print("You guessed it!!!")
+    break
+  }
+  tries <- tries + 1
+  cat("Attempts left:", 5 - tries, "\n")
+}
+if(guess != number){
+  cat("You didnt make it but the number was:", number)
+}
 
 ```
 
@@ -304,7 +329,16 @@ If the user fails to guess within 5 attempts, reveal the secret number.
 Store the sequence in a vector and print it at the end.
 
 ```{r}
+fib <- c(0, 1)
 
+while(TRUE){
+  next_num <- tail(fib, 1) + tail(fib, 2)[1]
+  if (next_num > 1000){
+    break
+  }
+  fib <- c(fib, next_num)
+}
+print(fib)
 
 ```
 
