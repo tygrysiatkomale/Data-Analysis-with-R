@@ -231,7 +231,12 @@ cat("Sum:", sum, "\n")
 The loop should stop when the cumulative sum of the vector exceeds 5.
 
 ```{r}
-
+vec <- c(runif(1))
+while (sum(vec) <= 5){
+  vec <- c(vec, runif(1))
+}
+print(vec)
+print(sum(vec))
 
 ```
 
@@ -241,7 +246,13 @@ The loop should stop when the cumulative sum of the vector exceeds 5.
 Print each generated number.
 
 ```{r}
-
+while(TRUE){
+  num <- runif(1)
+  print(num)
+  if(num > 0.9){
+    break
+  }
+}
 
 ```
 
@@ -251,7 +262,14 @@ Print each generated number.
 Use a `while` loop to iterate through the list and print only the numeric elements.
 
 ```{r}
-
+list <- list(1, 2, 3, 4, TRUE, TRUE, FALSE, 7, "ABC", "AGH",12)
+i <- 1
+while(i <= length(list)){
+  if(is.numeric(list[[i]])){
+    print(list[[i]])
+  }
+  i <- i+1
+}
 
 ```
 
