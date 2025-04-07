@@ -1,0 +1,1322 @@
+---
+title: "10E - dplyr"
+author: "Piotr Kosowski"
+date: "2024-10-07"
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+# dplyr: Data Manipulation in R
+
+The `dplyr` package, part of the tidyverse collection, is a powerful tool for data manipulation in R.
+It provides a set of functions (verbs) that are intuitive and efficient for transforming and summarizing data.
+This notebook will delve into the fundamentals of `dplyr`, explore both pipe operators, and introduce additional essential functions to enhance your data manipulation skills.
+
+------------------------------------------------------------------------
+
+## Setting Up the Environment
+
+Before diving into data manipulation, ensure that the necessary libraries are installed and loaded.
+We will use the `tidyverse` package, which includes `dplyr` among other essential packages, and the `nycflights13` dataset for practical examples.
+
+```{r}
+# Define the required libraries
+libs <- c("tidyverse", "nycflights13")
+
+# Check if libraries are installed; install missing ones
+installed_libs <- libs %in% rownames(installed.packages())
+if (any(installed_libs == FALSE)) {
+    install.packages(libs[!installed_libs])
+} 
+
+# Load the libraries
+library(tidyverse)
+library(nycflights13)
+```
+
+**Explanation:** - **`libs`**: A vector containing the names of required libraries.
+- **Installation Check**: Verifies if each library is installed; installs any that are missing.
+- **`library()`**: Loads the specified libraries into the R session.
+
+------------------------------------------------------------------------
+
+## Understanding Pipe Operators
+
+Pipe operators allow for more readable and concise code by passing the output of one function directly into the next function.
+In R, there are two primary pipe operators:
+
+1.  **Magrittr Pipe (`%>%`)**:
+    -   **Origin**: Comes from the `magrittr` package, which is loaded with `tidyverse`.
+    -   **Usage**: Widely used in the tidyverse for chaining multiple operations.
+    -   **Example**: `r      df %>%         filter(condition) %>%         arrange(column)`
+2.  **Native Pipe (`|>`)**:
+    -   **Origin**: Introduced in R version 4.1.0 as part of base R.
+    -   **Usage**: Similar to the magrittr pipe but with some syntactical differences.
+    -   **Example**: `r      df |>         filter(condition) |>         arrange(column)`
+
+### Key Differences Between `%>%` and `|>`
+
+-   **Function Naming**:
+    -   `%>%`: Allows for more flexible function placement, including anonymous functions.
+    -   `|>`: More rigid, primarily designed for simple function chaining.
+-   **Backward Compatibility**:
+    -   `%>%`: Part of the magrittr package and used extensively in existing tidyverse code.
+    -   `|>`: Native to R and will be more standard in future R code.
+-   **Anonymous Functions**:
+    -   `%>%`: Supports the dot (`.`) placeholder for more complex operations.
+    -   `|>`: Requires explicit anonymous function definitions for similar complexity.
+
+### Examples
+
+#### Using `%>%` Pipe
+
+```{r}
+# Example using magrittr pipe to filter and arrange data
+filtered_arranged <- flights %>% 
+  filter(dest == "IAH") %>% 
+  arrange(desc(arr_delay))
+
+# Display the result
+filtered_arranged
+```
+
+#### Using `|>` Pipe
+
+```{r}
+# Example using native pipe to filter and arrange data
+filtered_arranged_native <- flights |> 
+  filter(dest == "IAH") |> 
+  arrange(desc(arr_delay))
+
+# Display the result
+filtered_arranged_native
+```
+
+**Explanation:** - Both examples achieve the same outcome: filtering flights destined for "IAH" and arranging them in descending order of arrival delay.
+- The difference lies in the pipe operator used (`%>%` vs. `|>`).
+
+------------------------------------------------------------------------
+
+## dplyr Basics
+
+`dplyr` provides a set of functions (verbs) that facilitate data manipulation.
+The primary verbs include:
+
+1.  **filter()**: Selects rows based on conditions.
+2.  **arrange()**: Orders rows based on column values.
+3.  **distinct()**: Identifies unique rows.
+4.  **mutate()**: Adds or modifies columns.
+5.  **select()**: Chooses specific columns.
+6.  **rename()**: Renames columns.
+7.  **relocate()**: Changes the position of columns.
+8.  **pull()**: Extracts a single column as a vector.
+9.  **group_by()**: Groups data for summarization.
+10. **summarize()**: Creates summary statistics.
+11. **join functions**: Combines multiple data frames.
+
+### Common Characteristics of dplyr Verbs
+
+-   **First Argument**: Always a data frame.
+-   **Subsequent Arguments**: Describe actions based on column names.
+-   **Output**: Always a new data frame.
+
+These characteristics make it straightforward to chain multiple operations using pipe operators.
+
+------------------------------------------------------------------------
+
+### filter()
+
+`filter()` allows you to retain rows that meet certain conditions.
+
+**Syntax:**
+
+``` r
+filter(.data, condition1, condition2, ...)
+```
+
+**Examples:**
+
+#### Example 1: Flights with Arrival Delay \> 120 Minutes
+
+```{r}
+# Filter flights that arrived more than 120 minutes late
+delayed_flights <- flights %>% 
+  filter(arr_delay > 120)
+
+# Display the result
+delayed_flights
+
+```
+
+#### Example 2: Flights on January 1st
+
+```{r}
+
+# Filter flights that departed on January 1st
+january_first_flights <- flights %>% 
+  filter(month == 1 & day == 1)
+
+# Display the result
+january_first_flights
+
+```
+
+#### Example 3: Flights Departed in January or February
+
+```{r}
+
+# Filter flights that departed in January or February
+winter_flights <- flights %>% 
+  filter(month %in% c(1, 2))
+
+# Display the result
+winter_flights
+
+```
+
+**Explanation:** - **`arr_delay > 120`**: Selects flights with arrival delays exceeding two hours.
+- **`month == 1 & day == 1`**: Selects flights on January 1st.
+- **`month %in% c(1, 2)`**: Selects flights in January or February using the `%in%` operator for brevity.
+
+------------------------------------------------------------------------
+
+### arrange()
+
+`arrange()` orders the rows of a data frame based on the values of specified columns.
+
+**Syntax:**
+
+``` r
+arrange(.data, column1, column2, ..., .by_group = FALSE)
+```
+
+**Examples:**
+
+#### Example 1: Arrange Flights by Departure Time
+
+```{r}
+
+# Arrange flights by departure time in ascending order
+flights_sorted_dep_time <- flights %>% 
+  arrange(year, month, day, dep_time)
+
+# Display the result
+flights_sorted_dep_time
+
+```
+
+#### Example 2: Arrange Flights by Departure Delay Descending
+
+```{r}
+
+# Arrange flights by descending departure delay
+flights_sorted_dep_delay <- flights %>% 
+  arrange(desc(dep_delay))
+
+# Display the result
+flights_sorted_dep_delay
+
+```
+
+#### Example 3: Arrange Flights by Arrival Delay and Distance
+
+```{r}
+
+# Arrange flights by arrival delay descending and then by distance
+flights_sorted_complex <- flights %>% 
+  arrange(desc(arr_delay), distance) 
+
+# Display the result
+flights_sorted_complex
+
+```
+
+**Explanation:** - **`arrange(year, month, day, dep_time)`**: Sorts flights chronologically based on departure time.
+- **`desc(dep_delay)`**: Sorts flights by departure delay in descending order.
+- **`arrange(desc(arr_delay), distance)`**: First sorts by arrival delay descending, then by distance ascending to break ties.
+
+------------------------------------------------------------------------
+
+### distinct()
+
+`distinct()` identifies and retains unique rows based on specified columns.
+
+**Syntax:**
+
+``` r
+distinct(.data, column1, column2, ..., .keep_all = FALSE)
+```
+
+**Examples:**
+
+#### Example 1: Remove Duplicate Rows
+
+```{r}
+
+# Remove duplicate rows from the flights dataset
+unique_flights <- flights %>% 
+  distinct()
+
+# Display the result
+unique_flights
+
+```
+
+#### Example 2: Unique Origin-Destination Pairs
+
+```{r}
+
+# Find unique origin and destination pairs
+unique_routes <- flights %>% 
+  distinct(origin)
+
+# Display the result
+unique_routes
+
+```
+
+#### Example 3: Count of Unique Destinations
+
+```{r}
+
+# Count the number of unique destinations
+unique_dest_count <- flights %>% 
+  distinct(dest) %>% 
+  count()
+
+# Display the result
+unique_dest_count
+
+```
+
+**Explanation:** - **`distinct()`**: By default, removes duplicate rows based on all columns.
+- **`distinct(origin, dest)`**: Retains unique combinations of `origin` and `dest`.
+- **`count()`**: Counts the number of unique entries after `distinct()`.
+
+------------------------------------------------------------------------
+
+## Manipulating Columns
+
+Manipulating columns is essential for shaping data frames to fit analysis needs.
+`dplyr` offers several verbs for this purpose: `mutate()`, `select()`, `rename()`, `relocate()`, and `pull()`.
+
+### mutate()
+
+`mutate()` adds new columns or modifies existing ones based on computations or transformations.
+
+**Syntax:**
+
+``` r
+mutate(.data, new_column = expression, ...)
+```
+
+**Examples:**
+
+#### Example 1: Calculate Gain and Speed
+
+```{r}
+
+# Add 'gain' and 'speed' columns to the flights dataset
+flights_mutated <- flights %>% 
+  mutate(
+    gain = dep_delay - arr_delay,
+    speed = distance / air_time * 60
+  )
+
+# Display the result
+flights_mutated
+
+```
+
+**Explanation:** - **`gain`**: Represents how much time a flight made up (positive) or lost (negative) during the flight.
+- **`speed`**: Calculates the speed in miles per hour based on distance and air time.
+
+#### Example 2: Adding Columns Before a Specific Position
+
+```{r}
+
+# Add 'gain' and 'speed' columns before the first column
+flights_mutated_before <- flights %>% 
+  mutate(
+    gain = dep_delay - arr_delay,
+    speed = distance / air_time * 60,
+    .before = 1
+  )
+
+# Display the result
+flights_mutated_before
+
+```
+
+**Explanation:** - **`.before = 1`**: Places the new columns at the beginning of the data frame.
+- **`.after = column_name`**: Similarly, you can specify a column after which to place new columns.
+
+#### Example 3: Keeping Only Used Columns
+
+```{r}
+
+# Add 'gain', 'hours', and 'gain_per_hour' while keeping only used columns
+flights_mutated_keep <- flights %>% 
+  mutate(
+    gain = dep_delay - arr_delay,
+    hours = air_time / 60,
+    gain_per_hour = gain / hours,
+    .keep = "used"
+  )
+
+# Display the result
+flights_mutated_keep
+
+```
+
+**Explanation:** - **`.keep = "used"`**: Retains only the columns used in the `mutate()` operations alongside the new columns.
+
+------------------------------------------------------------------------
+
+### select()
+
+`select()` allows you to choose specific columns from a data frame, making it easier to focus on relevant variables.
+
+**Syntax:**
+
+``` r
+select(.data, column1, column2, ..., helpers)
+```
+
+**Helpers:** - **`starts_with("prefix")`**: Selects columns that start with the specified prefix.
+- **`ends_with("suffix")`**: Selects columns that end with the specified suffix.
+- **`contains("text")`**: Selects columns that contain the specified text.
+- **`matches("regex")`**: Selects columns that match the regular expression.
+- **`everything()`**: Selects all remaining columns.
+
+**Examples:**
+
+#### Example 1: Select Specific Columns
+
+```{r}
+
+# Select only 'year', 'month', and 'day' columns
+selected_columns <- flights %>% 
+  select(year, month, day)
+
+# Display the result
+selected_columns
+
+```
+
+#### Example 2: Select Columns Using Range
+
+```{r}
+
+# Select all columns from 'year' to 'day' inclusive
+selected_range <- flights %>% 
+  select(year:day)
+
+# Display the result
+selected_range
+
+```
+
+#### Example 3: Exclude Specific Columns
+
+```{r}
+
+# Select all columns except from 'year' to 'day' inclusive
+excluded_columns <- flights %>% 
+  select(!year:day)
+
+# Display the result
+excluded_columns
+
+```
+
+#### Example 4: Select Columns Based on Data Type
+
+```{r}
+
+# Select all character columns
+character_columns <- flights %>% 
+  select(where(is.character))
+
+# Display the result
+character_columns
+
+```
+
+#### Example 5: Select Columns Using Helper Functions
+
+```{r}
+
+# Select columns that start with 'dep'
+dep_columns <- flights %>% 
+  select(starts_with("dep"))
+
+# Display the result
+dep_columns
+
+```
+
+**Explanation:** - **`select(year, month, day)`**: Retains only the specified columns.
+- **`select(year:day)`**: Selects a range of columns from `year` to `day`.
+- **`select(!year:day)`**: Excludes the specified range of columns.
+- **`select(where(is.character))`**: Selects columns with the character data type.
+- **`starts_with("dep")`**: Selects all columns that begin with "dep", such as `dep_time`, `dep_delay`.
+
+------------------------------------------------------------------------
+
+### rename()
+
+`rename()` changes the names of existing columns without altering the data.
+
+**Syntax:**
+
+``` r
+rename(.data, new_name = old_name, ...)
+```
+
+**Examples:**
+
+#### Example 1: Rename a Single Column
+
+```{r}
+
+# Rename 'tailnum' to 'tail_num'
+renamed_flights <- flights %>% 
+  rename(tail_num = tailnum)
+
+# Display the result
+renamed_flights
+
+```
+
+#### Example 2: Rename Multiple Columns
+
+```{r}
+
+# Rename 'dep_time' to 'departure_time' and 'arr_time' to 'arrival_time'
+renamed_flights_multiple <- flights %>% 
+  rename(
+    departure_time = dep_time,
+    arrival_time = arr_time
+  )
+
+# Display the result
+renamed_flights_multiple
+
+```
+
+#### Example 3: Rename Columns Using Helper Functions
+
+```{r}
+
+# Rename all columns that start with 'dep' to start with 'departure_'
+renamed_dep <- flights %>% 
+  rename_with(~ str_replace(., "^dep", "departure"))
+
+# Display the result
+renamed_dep
+
+```
+
+**Explanation:** - **`rename(tail_num = tailnum)`**: Changes the column name `tailnum` to `tail_num`.
+- **`rename_with()`**: Utilizes a helper function to rename multiple columns based on a pattern.
+
+------------------------------------------------------------------------
+
+### relocate()
+
+`relocate()` changes the position of columns within a data frame, allowing you to organize data more logically.
+
+**Syntax:**
+
+``` r
+relocate(.data, column1, column2, ..., .before = column, .after = column)
+```
+
+**Examples:**
+
+#### Example 1: Move Columns to the Beginning
+
+```{r}
+
+# Relocate 'time_hour' and 'air_time' to the beginning
+relocated_flights <- flights %>% 
+  relocate(time_hour, air_time)
+
+# Display the result
+relocated_flights
+
+```
+
+#### Example 2: Move Columns After a Specific Column
+
+```{r}
+
+# Relocate 'year' to be after 'time_hour'
+relocated_flights_after <- flights %>% 
+  relocate(year, .after = time_hour)
+
+# Display the result
+relocated_flights_after
+
+```
+
+#### Example 3: Move Columns Using Helper Functions
+
+```{r}
+
+# Relocate columns that start with 'arr' before 'dep_time'
+relocated_arr_before_dep <- flights %>% 
+  relocate(starts_with("arr"), .before = dep_time)
+
+# Display the result
+relocated_arr_before_dep
+
+```
+
+**Explanation:** - **`relocate(time_hour, air_time)`**: Moves the specified columns to the front of the data frame.
+- **`.after = time_hour`**: Places the relocated columns immediately after the `time_hour` column.
+- **`starts_with("arr")`**: Selects columns that start with "arr" for relocation.
+
+------------------------------------------------------------------------
+
+### pull()
+
+`pull()` extracts a single column from a data frame as a vector, facilitating further analysis or operations.
+
+**Syntax:**
+
+``` r
+pull(.data, column)
+```
+
+**Examples:**
+
+#### Example 1: Extract 'dep_delay' as a Vector
+
+```{r}
+
+# Extract the 'dep_delay' column as a vector
+departure_delays <- flights %>% 
+  pull(dep_delay)
+
+# Display the first few elements
+head(departure_delays)
+
+```
+
+#### Example 2: Extract 'carrier' Column
+
+```{r}
+
+# Extract the 'carrier' column as a vector
+carriers <- flights %>% 
+  pull(carrier)
+
+# Display the first few elements
+head(carriers)
+
+```
+
+**Explanation:** - **`pull(dep_delay)`**: Extracts the `dep_delay` column, allowing you to perform vectorized operations on it.
+
+------------------------------------------------------------------------
+
+## Grouping and Summarizing Data
+
+Grouping data is essential for performing aggregate operations, such as calculating summaries for different subsets of data.
+`dplyr` provides the `group_by()` and `summarize()` functions to facilitate these tasks.
+
+### group_by()
+
+`group_by()` divides the data into groups based on the values of specified columns.
+Subsequent operations, such as `summarize()`, will then be performed within these groups.
+
+**Syntax:**
+
+``` r
+group_by(.data, column1, column2, ...)
+```
+
+**Examples:**
+
+#### Example 1: Group Flights by Month
+
+```{r}
+
+# Group flights by month
+flights_grouped_month <- flights %>% 
+  group_by(month)
+
+# Display the grouped data
+flights_grouped_month
+
+```
+
+#### Example 2: Group Flights by Carrier and Destination
+
+```{r}
+
+# Group flights by carrier and destination
+flights_grouped_carrier_dest <- flights %>% 
+  group_by(carrier, dest)
+
+# Display the grouped data
+flights_grouped_carrier_dest
+
+```
+
+**Explanation:** - **`group_by(month)`**: Groups the flights data by each month.
+- **`group_by(carrier, dest)`**: Creates groups based on unique combinations of carrier and destination.
+
+### summarize()
+
+`summarize()` creates summary statistics for each group defined by `group_by()`.
+
+**Syntax:**
+
+``` r
+summarize(.data, summary1 = expression, summary2 = expression, ...)
+```
+
+**Examples:**
+
+#### Example 1: Average Departure Delay by Month
+
+```{r}
+
+# Calculate average departure delay for each month
+avg_dep_delay_month <- flights %>% 
+  group_by(month) %>% 
+  summarize(
+    avg_dep_delay = mean(dep_delay, na.rm = TRUE)
+  )
+
+# Display the result
+avg_dep_delay_month
+
+```
+
+#### Example 2: Count of Flights per Carrier
+
+```{r}
+
+# Count the number of flights per carrier
+flight_count_carrier <- flights %>% 
+  group_by(carrier) %>% 
+  summarize(
+    total_flights = n()
+  )
+
+# Display the result
+flight_count_carrier
+
+```
+
+#### Example 3: Multiple Summaries for Each Destination
+
+```{r}
+
+# Calculate average arrival delay and total flights per destination
+delay_summary_dest <- flights %>% 
+  group_by(dest) %>% 
+  summarize(
+    avg_arr_delay = mean(arr_delay, na.rm = TRUE),
+    total_flights = n()
+  )
+
+# Display the result
+delay_summary_dest
+
+```
+
+**Explanation:** - **`mean(dep_delay, na.rm = TRUE)`**: Calculates the average departure delay, excluding missing values.
+- **`n()`**: Counts the number of rows (flights) in each group.
+
+### slice\_\* Functions
+
+The `slice_*` family of functions allows you to select specific rows within each group, such as the first or last row, or rows with minimum/maximum values.
+
+**Functions:** - **`slice_head(n = 1)`**: Selects the first `n` rows of each group.
+- **`slice_tail(n = 1)`**: Selects the last `n` rows of each group.
+- **`slice_min(order_by, n = 1)`**: Selects the rows with the smallest values in `order_by`.
+- **`slice_max(order_by, n = 1)`**: Selects the rows with the largest values in `order_by`.
+- **`slice_sample(n = 1)`**: Selects random rows from each group.
+
+**Examples:**
+
+#### Example 1: Most Delayed Flight to Each Destination
+
+```{r}
+
+# Find the most delayed flight to each destination
+most_delayed_dest <- flights %>% 
+  group_by(dest) %>% 
+  slice_max(arr_delay, n = 1)
+
+# Display the result
+most_delayed_dest
+
+```
+
+#### Example 2: First Flight of Each Day
+
+```{r}
+
+# Find the first flight of each day
+first_flight_daily <- flights %>% 
+  group_by(year, month, day) %>% 
+  slice_head(n = 1)
+
+# Display the result
+first_flight_daily
+
+```
+
+#### Example 3: Random Sample of Flights per Carrier
+
+```{r}
+
+# Select a random sample of 2 flights per carrier
+random_flights_carrier <- flights %>% 
+  group_by(carrier) %>% 
+  slice_sample(n = 2)
+
+# Display the result
+random_flights_carrier
+
+```
+
+**Explanation:** - **`slice_max(arr_delay, n = 1)`**: Retrieves the flight with the maximum arrival delay for each destination.
+- **`slice_head(n = 1)`**: Gets the first flight of each day based on the current ordering.
+- **`slice_sample(n = 2)`**: Randomly selects two flights per carrier.
+
+### count()
+
+`count()` provides a quick way to count the number of occurrences of combinations of variables.
+
+**Syntax:**
+
+``` r
+count(.data, column1, column2, ..., sort = FALSE, name = "n")
+```
+
+**Examples:**
+
+#### Example 1: Count of Flights per Origin-Destination Pair
+
+```{r}
+
+# Count the number of flights for each origin-destination pair
+flight_counts_od <- flights %>% 
+  count(origin, dest, sort = TRUE)
+
+# Display the result
+flight_counts_od
+
+```
+
+#### Example 2: Count of Flights per Carrier
+
+```{r}
+
+# Count the number of flights per carrier
+flight_counts_carrier <- flights %>% 
+  count(carrier, sort = TRUE)
+
+# Display the result
+flight_counts_carrier
+
+```
+
+**Explanation:** - **`count(origin, dest, sort = TRUE)`**: Counts flights for each unique combination of `origin` and `dest`, sorted in descending order of count.
+- **`count(carrier, sort = TRUE)`**: Counts flights per carrier, sorted from most to least.
+
+------------------------------------------------------------------------
+
+## Additional dplyr Functions
+
+While the primary verbs cover most data manipulation needs, `dplyr` offers additional functions that enhance data processing capabilities.
+
+### Join Functions
+
+Joins combine two data frames based on a common key.
+The primary join functions include:
+
+1.  **left_join()**: Keeps all rows from the left data frame and adds matching rows from the right.
+2.  **right_join()**: Keeps all rows from the right data frame and adds matching rows from the left.
+3.  **inner_join()**: Keeps only rows that have matching keys in both data frames.
+4.  **full_join()**: Keeps all rows from both data frames, filling in `NA` where there are no matches.
+
+**Example: Joining Flights with Airlines Data**
+
+```{r}
+
+# View the airlines dataset
+airlines
+
+```
+
+```{r}
+
+# Perform a left join to add airline names to flights data
+flights_with_airlines <- flights %>% 
+  left_join(airlines, by = "carrier")
+
+# Display the result
+flights_with_airlines
+
+```
+
+**Explanation:** - **`left_join(airlines, by = "carrier")`**: Merges the `airlines` data frame into `flights` based on the `carrier` column, retaining all flights and adding airline names where available.
+
+### bind_rows() and bind_cols()
+
+These functions combine data frames by rows or columns.
+
+**Examples:**
+
+#### bind_rows()
+
+```{r}
+
+# Create two small data frames
+df1 <- data.frame(id = 1:3, value = c("A", "B", "C"))
+df2 <- data.frame(id = 4:6, value = c("D", "E", "F"))
+
+# Bind the rows together
+combined_rows <- bind_rows(df1, df2)
+
+# Display the result
+combined_rows
+
+```
+
+#### bind_cols()
+
+```{r}
+
+# Create two small data frames with the same number of rows
+df3 <- data.frame(id = 1:3, value = c("A", "B", "C"))
+df4 <- data.frame(score = c(90, 85, 88))
+
+# Bind the columns together
+combined_cols <- bind_cols(df3, df4)
+
+# Display the result
+combined_cols
+
+```
+
+**Explanation:** - **`bind_rows()`**: Stacks `df1` and `df2` vertically, combining their rows.
+- **`bind_cols()`**: Places `df3` and `df4` side by side, combining their columns.
+
+### rename_with()
+
+`rename_with()` allows you to rename multiple columns using a function, enabling bulk renaming based on patterns or transformations.
+
+**Syntax:**
+
+``` r
+rename_with(.data, .fn, .cols = everything())
+```
+
+**Examples:**
+
+#### Convert Column Names to Uppercase
+
+```{r}
+
+# Convert all column names to uppercase
+flights_upper <- flights %>% 
+  rename_with(toupper)
+
+# Display the result
+flights_upper
+
+```
+
+#### Replace Underscores with Dashes in Column Names
+
+```{r}
+
+# Replace underscores with dashes in column names
+flights_renamed <- flights %>% 
+  rename_with(~ str_replace_all(., "_", "-"))
+
+# Display the result
+flights_renamed
+
+```
+
+**Explanation:** - **`rename_with(toupper)`**: Transforms all column names to uppercase.
+- **`rename_with(~ str_replace_all(., "_", "-"))`**: Replaces all underscores with dashes in column names using a lambda function.
+
+### transmute()
+
+`transmute()` creates new columns while dropping existing ones, unlike `mutate()` which retains all existing columns.
+
+**Syntax:**
+
+``` r
+transmute(.data, new_column = expression, ...)
+```
+
+**Examples:**
+
+#### Calculate Gain and Speed, Drop Other Columns
+
+```{r}
+
+# Create a data frame with only 'gain' and 'speed' columns
+flights_transmuted <- flights %>% 
+  transmute(
+    gain = dep_delay - arr_delay,
+    speed = distance / air_time * 60
+  )
+
+# Display the result
+flights_transmuted
+
+```
+
+**Explanation:** - **`transmute()`**: Adds new columns `gain` and `speed` while removing all other columns from the data frame.
+
+------------------------------------------------------------------------
+
+## Exercises
+
+### Using Built-in `mtcars` Dataset
+
+The `mtcars` dataset is a built-in R dataset that comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models).
+
+#### Exercise 1: Filter Cars with mpg \> 20 and 6 Cylinders
+
+**Question:** Return rows of cars that have an `mpg` value greater than 20 and 6 cylinders.
+
+```{r}
+mtcars %>% 
+  filter(mpg > 20 & cyl == 6)
+
+```
+
+#### Exercise 2: Reorder the Data Frame by `cyl` and Descending `wt`
+
+**Question:** Reorder the `mtcars` data frame first by the number of cylinders (`cyl`), then by descending weight (`wt`).
+
+```{r}
+mtcars <- mtcars %>% 
+  arrange(cyl, desc(wt))
+
+```
+
+#### Exercise 3: Select the `mpg` and `hp` Columns
+
+**Question:** Select only the `mpg` (miles per gallon) and `hp` (horsepower) columns from the `mtcars` dataset.
+
+```{r}
+mtcars %>% 
+  select(mpg, hp)
+
+```
+
+#### Exercise 4: Select Distinct Values of the `gear` Column
+
+**Question:** Select the distinct values of the `gear` column from the `mtcars` dataset.
+
+```{r}
+
+mtcars %>% 
+  select(gear) %>% 
+  distinct()
+
+```
+
+#### Exercise 5: Create a New Column `Performance` as `hp` Divided by `wt`
+
+**Question:** Create a new column called `Performance` which is calculated by horsepower (`hp`) divided by weight (`wt`).
+
+```{r}
+
+
+
+```
+
+#### Exercise 6: Calculate the Average Horsepower for Each Number of Cylinders
+
+**Question:** Create a summary table that shows the average horsepower (`hp`) for each number of cylinders (`cyl`).
+
+```{r}
+
+
+
+
+```
+
+#### Exercise 7: Identify Cars with the Highest and Lowest MPG
+
+**Question:** Identify the car(s) with the highest and lowest miles per gallon (`mpg`).
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+#### Exercise 8: Add a Column Indicating Transmission Type
+
+**Question:** Add a new column `transmission` that labels cars as "Automatic" if `am` is 0 and "Manual" if `am` is 1.
+
+```{r}
+
+
+```
+
+#### Exercise 9: Select Cars with High Performance
+
+**Question:** Select cars with a `Performance` value greater than 30, where `Performance` is calculated as `hp / wt`.
+
+```{r}
+
+
+```
+
+#### Exercise 10: Rename Columns for Clarity
+
+**Question:** Rename the `hp` column to `horsepower` and `wt` to `weight`.
+
+```{r}
+
+
+```
+
+------------------------------------------------------------------------
+
+### Using `flights` Dataset from `nycflights13`
+
+The `flights` dataset contains information about all flights that departed from New York City in 2013.
+
+#### Exercise 1: Find All Flights That Had an Arrival Delay of Two or More Hours
+
+**Question:** Find all flights that had an arrival delay of two or more hours.
+
+```{r}
+
+
+
+```
+
+#### Exercise 2: Find Flights That Flew to Houston (`IAH` or `HOU`)
+
+**Question:** Find all flights that flew to Houston, either `IAH` or `HOU`.
+
+```{r}
+
+
+
+```
+
+#### Exercise 3: Find Flights Operated by United, American, or Delta
+
+**Question:** Find all flights operated by United, American, or Delta airlines.
+
+```{r}
+
+
+
+```
+
+#### Exercise 4: Find Flights Departed in Summer (July, August, September)
+
+**Question:** Find all flights that departed in the summer months: July, August, and September.
+
+```{r}
+
+
+```
+
+#### Exercise 5: Find Flights That Arrived More Than Two Hours Late but Didn’t Leave Late
+
+**Question:** Find flights that arrived more than two hours late but didn’t leave late (departure delay \<= 0).
+
+```{r}
+
+
+
+```
+
+#### Exercise 6: Find Flights Delayed by at Least an Hour but Made Up Over 30 Minutes in Flight
+
+**Question:** Find flights that were delayed by at least an hour upon departure but made up over 30 minutes during the flight (arrival delay \<= departure delay - 30).
+
+```{r}
+
+
+
+```
+
+#### Exercise 7: Sort `flights` to Find the Flights with Longest Departure Delays and Earliest Departure Times
+
+**Question:** Sort `flights` to find the flights with the longest departure delays and those that left earliest in the morning.
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+#### Exercise 8: Sort `flights` to Find the Fastest Flights
+
+**Question:** Sort `flights` to find the fastest flights by calculating speed (`distance / air_time * 60`).
+
+```{r}
+
+
+```
+
+#### Exercise 9: Check if There Was a Flight on Every Day of 2013
+
+**Question:** Verify if there was at least one flight every day in 2013.
+
+```{r}
+
+
+```
+
+#### Exercise 10: Find the Most and Least Distant Flights
+
+**Question:** Identify which flights traveled the farthest and the least distance.
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+```
+
+#### Exercise 11: Determine Which Carrier Has the Worst Delays
+
+**Question:** Identify the carrier with the worst average arrival delays.
+
+```{r}
+
+
+
+```
+
+------------------------------------------------------------------------
+
+#### Exercise 12: Find the Most Delayed Flight to Each Destination
+
+**Question:** Find the most delayed flight to each destination.
+
+```{r}
+
+
+
+```
+
+#### Exercise 13: Analyze How Delays Vary Over the Course of the Day
+
+**Question:** Analyze how departure and arrival delays vary over different times of the day.
+
+```{r}
+
+
+
+```
+
+#### Exercise 14: Calculate Total Number of Flights per Day
+
+**Question:** Calculate the total number of flights for each day in 2013.
+
+```{r}
+
+
+```
+
+#### Exercise 15: Find the Most Frequent Destinations
+
+**Question:** Identify the top 10 most frequent destination airports.
+
+```{r}
+
+
+
+```
+
+#### Exercise 16: Calculate Average Speed per Carrier
+
+**Question:** Calculate the average speed (miles per hour) for each carrier.
+
+```{r}
+
+
+```
+
+#### Exercise 17: Identify Days with the Highest Number of Canceled Flights
+
+**Question:** Identify the days with the highest number of canceled flights (`is.na(dep_time)`).
+
+```{r}
+
+
+
+```
+
+#### Exercise 18: Analyze Departure Delays by Carrier
+
+**Question:** Compare the average departure delays among different carriers.
+
+```{r}
+
+
+
+```
+
+------------------------------------------------------------------------
+
+## Summary
+
+In this session, we explored the `dplyr` package, a cornerstone of the tidyverse for data manipulation in R.
+We covered the essential verbs that allow for filtering, arranging, selecting, mutating, and summarizing data.
+Additionally, we delved into more advanced functions such as joins, binding rows/columns, and renaming with helper functions.
+
+Understanding pipe operators is crucial for writing readable and efficient code.
+We compared the magrittr pipe (`%>%`) with the native R pipe (`|>`), highlighting their differences and use cases.
+
+Through practical examples and exercises using the `mtcars` and `flights` datasets, you have gained hands-on experience in applying `dplyr` functions to real-world data scenarios.
+These skills are foundational for any data analysis workflow in R, enabling you to transform and summarize data effectively.
+
+**Next Steps:** - **Practice**: Implement more complex data manipulation tasks using `dplyr` to reinforce your understanding.
+- **Explore**: Dive deeper into advanced functions and explore the `tidyr` package for data tidying.
+- **Visualization**: Combine `dplyr` with visualization packages like `ggplot2` to create insightful plots.
+- **Optimization**: Learn about optimizing data manipulation for larger datasets and leveraging parallel processing where applicable.
+
+------------------------------------------------------------------------
+
+# References and Additional Resources
+
+-   **R Documentation: dplyr**: Comprehensive documentation for all `dplyr` functions.
+    -   [dplyr on CRAN](https://CRAN.R-project.org/package=dplyr)
+-   **R for Data Science by Hadley Wickham & Garrett Grolemund**: An excellent resource for learning data science in R, covering `dplyr` in depth.
+    -   [R for Data Science](https://r4ds.had.co.nz/)
+-   **Advanced R by Hadley Wickham**: For a deeper understanding of functions and programming concepts in R.
+    -   [Advanced R](https://adv-r.hadley.nz/)
+-   **dplyr Cheat Sheet**: Quick reference for `dplyr` functions and syntax.
+    -   [dplyr Cheat Sheet](https://rstudio.com/resources/cheatsheets/)
