@@ -1,0 +1,406 @@
+---
+title: "Creating Tables in R"
+author: "Piotr Kosowski"
+date: "2025-03-02"
+---
+
+# Introduction
+
+In this session, we will dive deeper into creating and styling tables in R. We will revisit four popular approaches:
+
+1. **knitr::kable()**: A convenient function for converting data frames to basic tables.  
+2. **kableExtra**: Builds on `kable()` to provide advanced formatting (multi-row headers, footnotes, row grouping, etc.).  
+3. **gt**: A package for building publication-ready tables with a pipe-friendly syntax.  
+4. **gtsummary**: Especially useful in statistical and clinical contexts for summary tables and regression models.
+
+By the end, you’ll be able to create sophisticated tables for reports, papers, and interactive documents.
+
+---
+
+# 1. Prerequisites
+
+```{r}
+# Make sure you have these packages installed.
+# Uncomment if you need to install any of them:
+# install.packages("knitr")
+# install.packages("kableExtra")
+# install.packages("gt")
+# install.packages("gtsummary")
+
+library(tidyverse)    # data manipulation
+library(knitr)        # kable()
+library(kableExtra)   # advanced kable formatting
+library(gt)           # the gt table creation package
+library(gtsummary)    # advanced summary tables
+
+```
+
+---
+
+# 2. Example Datasets
+
+We’ll use multiple datasets to demonstrate the packages:
+
+```{r}
+# A small custom data frame for demonstration:
+df <- data.frame(
+  ID       = 1:5,
+  Name     = c("Alice", "Bob", "Charlie", "Diana", "Ethan"),
+  Score    = c(88, 95, 70, 91, 84),
+  Passed   = c(TRUE, TRUE, FALSE, TRUE, TRUE),
+  stringsAsFactors = FALSE
+)
+
+# We'll also use built-in datasets.
+head(df)
+head(mtcars)
+```
+
+---
+
+# 3. Creating Tables with knitr::kable()
+
+## 3.1 Basic Usage
+
+The simplest way to turn a data frame into a table is to use **`knitr::kable()`**:
+
+```{r}
+kable(df, caption = "Basic kable table showing 'df'.")
+```
+
+By default, it detects the output format (HTML, PDF, etc.) and produces a basic table.
+
+## 3.2 Customizing `kable()`
+
+You can specify additional arguments such as:
+
+- `format`: "html", "latex", "markdown", etc.  
+- `digits`: number of decimal places for numeric columns.  
+- `align`: alignment of columns ("l", "c", or "r").  
+- `col.names`: custom column names.
+
+```{r}
+kable(
+  df,
+  format = "html",
+  digits = 1,
+  align = c("l", "c", "c", "c"),
+  col.names = c("ID", "Name", "Score", "Passed?"),
+  caption = "Customized Table with kable()"
+)
+```
+
+*(Note: Some styling might only show fully in HTML or PDF outputs.)*
+
+---
+
+# 4. Advanced Styling with kableExtra
+
+The **kableExtra** package extends `kable()` to enable advanced styling. You start by creating a `kable()` object, then pipe (`%>%`) into `kableExtra` functions.
+
+## 4.1 kable_styling and Basic Themes
+
+```{r}
+kable(df, "html", caption = "Basic Table with kableExtra") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  )
+```
+
+- `striped` gives alternating row colors,  
+- `hover` highlights rows when hovered over (HTML),  
+- `condensed` reduces cell padding.
+
+## 4.2 Row and Column Specifications
+
+You can apply row- or column-specific styling:
+
+```{r}
+kable(df, "html", caption = "Row and Column Customization") %>%
+  kable_styling("striped") %>%
+  row_spec(1, bold = TRUE, color = "white", background = "#D7261E") %>%
+  row_spec(5, italic = TRUE, background = "#F7E024") %>%
+  column_spec(2, color = "blue") %>%
+  column_spec(3, background = "#CECECE")
+```
+
+## 4.3 Grouping Rows
+
+You can group rows and add a “spanner” header:
+
+```{r}
+# Example grouping: group rows by Passed or Not
+df_sorted <- df[order(df$Passed), ]
+
+kable(df_sorted, "html", caption = "Grouped Rows Example") %>%
+  kable_styling("striped") %>%
+  pack_rows("Not Passed", 1, 1) %>%
+  pack_rows("Passed", 2, 5)
+```
+
+*(`pack_rows` merges multiple rows under a group label.)*
+
+## 4.4 Multi-level Column Headers
+
+For complex data, you might define multi-level headers:
+
+```{r}
+# Example: Splitting columns into categories
+df_extended <- data.frame(
+  "Participant" = c("Alice", "Bob", "Charlie", "Diana", "Ethan"),
+  "Midterm.Score" = c(75, 88, 94, 83, 78),
+  "Final.Score"   = c(85, 92, 88, 90, 80),
+  "Midterm.Grade" = c("B", "A", "A", "B", "C"),
+  "Final.Grade"   = c("B+", "A-", "B", "A-", "B-"),
+  stringsAsFactors = FALSE
+)
+
+kable(df_extended, "html") %>%
+  kable_styling("striped") %>%
+  add_header_above(c(" " = 1, "Scores" = 2, "Grades" = 2))
+```
+
+*(Here, `add_header_above` merges columns into spanner headers: one spanner for Scores, another for Grades.)*
+
+## 4.5 Footnotes and General Notes
+
+```{r}
+kable(df, "html", caption = "Footnotes Example") %>%
+  kable_styling("striped") %>%
+  footnote(
+    general = "This is a general footnote for the entire table.",
+    general_title = "Note:",
+    footnote_as_chunk = TRUE
+  )
+```
+
+---
+
+# 5. Creating Tables with gt
+
+The **gt** package is a tidyverse-friendly approach for building beautiful tables.
+
+## 5.1 Basic gt Table
+
+```{r}
+df %>%
+  gt() %>%
+  tab_header(
+    title    = "Sample Table with gt",
+    subtitle = "Showing ID, Name, Score, and Passed columns"
+  )
+```
+
+## 5.2 Formatting Columns
+
+```{r}
+df %>%
+  gt() %>%
+  tab_header(title = "Column Formatting") %>%
+  cols_label(
+    Passed = "Is Passed?"
+  ) %>%
+  fmt_number(
+    columns = vars(Score),
+    decimals = 0
+  )
+```
+
+## 5.3 Conditional Highlighting
+
+```{r}
+df %>%
+  gt() %>%
+  data_color(
+    columns = c(Score),
+    fn = scales::col_numeric(
+      palette = c("lightgreen", "darkgreen"),
+      domain  = c(70, 100)
+    )
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold", color = "red"),
+    locations = cells_body(
+      rows = Score < 80
+    )
+  ) %>%
+  tab_header(title = "Conditional Formatting")
+```
+
+## 5.4 Grouping Rows in gt
+
+We can group rows under labels:
+
+```{r}
+df %>%
+  mutate(
+    status = ifelse(Passed, "Passed", "Not Passed")
+  ) %>%
+  gt(groupname_col = "status") %>%
+  tab_header(title = "Grouping Rows in gt")
+```
+
+---
+
+# 6. Summaries with gtsummary
+
+**gtsummary** excels in creating summary tables for data frames.
+
+## 6.1 Basic tbl_summary()
+
+```{r}
+tbl_summary(df, by = Passed) %>%
+  add_p() %>%
+  add_overall() %>%
+  bold_labels()
+```
+
+*(By default, gtsummary attempts to detect numeric vs. categorical columns and summarize them accordingly.)*
+
+
+**tbl_summary(df, by = Passed)**
+The `tbl_summary()` function creates a summary table from the data frame df.
+The argument `by = Passed` indicates that the data should be split into groups based on the values of Passed. This typically results in separate statistical columns for each level of Passed (e.g., if Passed has two categories, "No" and "Yes," you’ll get two columns).
+gtsummary automatically detects which columns in df are numeric (continuous) or categorical and produces default summary statistics (e.g., mean and standard deviation for numeric columns, frequencies for categorical columns).
+
+**add_p()**
+`add_p()` adds a p-value column to the table, indicating the results of statistical tests comparing the groups defined by Passed.
+For example, if you have a numeric variable like Score, gtsummary may use a t-test (or another appropriate test) to compare Score between "No" vs. "Yes."
+If you have a categorical variable, `add_p()` can perform a chi-square or Fisher’s exact test, depending on the data.
+
+**add_overall()**
+`add_overall()` appends a column labeled “Overall” (or similar), which displays summary statistics for the entire data set (all rows), disregarding the grouping.
+This allows you to compare group-specific values (e.g., "No," "Yes") against the total/overall metric.
+
+**bold_labels()**
+`bold_labels()` applies formatting (often bold text) to the row labels (i.e., the variable names) in the table.
+This makes the variable names more visually distinct and improves readability.
+
+**Putting It All Together**
+- `tbl_summary(df, by = Passed)`: Creates a summary table of df, split by the Passed variable.
+- `add_p()`: Adds a column of statistical tests (p-values) to compare the groups.
+- `add_overall()`: Adds a column with summary statistics for the entire data set, enabling you to see group values vs. the total.
+- `bold_labels()`: Enhances the appearance by making variable labels bold.
+
+
+
+
+## 6.2 Customizing Summaries
+
+You can customize statistics per variable type. For example:
+
+```{r}
+tbl_summary(
+  df,
+  by = Passed,
+  type = list(Score ~ "continuous"),      # treat Score as continuous
+  statistic = list(all_continuous() ~ "{mean} ({sd})")
+) %>%
+  add_p() %>%
+  bold_labels()
+```
+
+## 6.3 Converting gtsummary to gt or kable
+
+By default, gtsummary tables print in HTML. But you can pipe them to a **gt** or **kable** object:
+
+```{r}
+tbl_summary(df, by = Passed) %>%
+  as_gt()      # convert to gt table
+```
+
+or
+
+```{r}
+tbl_summary(df, by = Passed) %>%
+  as_kable_extra()  # convert to kableExtra
+```
+
+---
+
+# 7. Exercises
+
+Below are additional practice exercises. 
+
+---
+
+## Exercise 1: Multi-level Headers with kableExtra
+
+**Question**  
+Create a data frame with at least 4 columns (two of them logically grouped under “Scores” and two under “Results”). Generate a multi-level header table using `add_header_above`. Use `kable_styling(bootstrap_options = c("striped", "hover"))`.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 2: Footnotes and Row Grouping in kableExtra
+
+**Question**  
+Using the built-in `iris` dataset, create a table of the first 10 rows. Group rows by `Species` (assume the first 10 rows might contain 2 or 3 species). Add a footnote explaining the data in general.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 3: gt with Aggregations
+
+**Question**  
+Use the `mtcars` dataset. Summarize (with `dplyr`) the average MPG by the number of cylinders (`cyl`). Then build a gt table with a title “Average MPG by Cylinders” and format the MPG column to 1 decimal place. Apply some row highlighting or data coloring if the MPG is above 20.
+
+```{r}
+# Your code here:
+```
+
+
+---
+
+## Exercise 4: gtsummary with Custom Statistics
+
+**Question**  
+Using `mtcars`, create a summary table with `tbl_summary()`. Group by `am` (transmission). Display the mean and standard deviation for numeric variables. Add `add_p()` and `add_overall()`, then convert to gt.
+
+```{r}
+# Your code here:
+```
+
+
+
+
+---
+
+# 8. Summary
+
+We covered **advanced methods** for creating and formatting tables in R:
+
+1. **knitr::kable()** for quick and easy table creation.  
+2. **kableExtra** for advanced styling (row grouping, multi-row headers, footnotes).  
+3. **gt** for a powerful, tidyverse-style approach to building visually appealing tables.  
+4. **gtsummary** for fast, specialized summary tables and statistical modeling outputs.
+
+**Key Takeaways**:
+
+- **kable + kableExtra** is often used in R Markdown documents (HTML/PDF) for academic or business reports.  
+- **gt** shines with an intuitive pipe-based syntax and polished design out of the box.  
+- **gtsummary** is invaluable for presenting summary stats or regression results, especially in medical or clinical research.  
+
+**Next Steps**:
+
+- Explore **conditional styling** and advanced footnotes in `kableExtra` and `gt`.  
+- Look into **themes** and custom CSS for deeper styling.  
+- Combine table outputs with R Markdown to generate professional reports.
+
+## References
+
+- [knitr::kable() documentation](https://www.rdocumentation.org/packages/knitr/)  
+- [kableExtra GitHub page](https://haozhu233.github.io/kableExtra/)  
+- [gt package documentation](https://gt.rstudio.com/)  
+- [gtsummary website](https://www.danieldsjoberg.com/gtsummary/)  
+- [scales package (for color palettes, used in gt)](https://scales.r-lib.org/)  
+

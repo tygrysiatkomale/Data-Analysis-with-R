@@ -1,0 +1,558 @@
+---
+title: "11E - Tidying Data with tidyr"
+author: "Piotr Kosowski"
+date: "2025-03-27"
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+# Tidying Data with tidyr
+
+Data **tidying** is a fundamental step in the data analysis process. Ensuring that your data is in a **consistent, tidy format** makes it easier to manipulate, visualize, and model. The **`tidyr`** package, part of the **tidyverse**, provides a suite of functions designed to help you **transform messy data** into tidy data.
+
+This notebook covers:
+
+1. Installing and loading required libraries  
+2. Understanding what constitutes *tidy data*  
+3. Core tidyr functions – `pivot_longer()`, `pivot_wider()`, `separate()`, `unite()`  
+4. Advanced tidyr functions – `fill()`, `replace_na()`, `complete()`  
+5. Practical examples with `nycflights13` data  
+6. Exercises for hands-on practice  
+
+---
+
+## Setting Up the Environment
+
+Before diving into data tidying, ensure the necessary libraries are installed and loaded. We will use:
+
+- **tidyverse** (includes `tidyr`, `dplyr`, `ggplot2`, etc.)  
+- **nycflights13** (for real-world flight data examples)
+
+```{r}
+# Define the required libraries
+libs <- c("tidyverse", "nycflights13")
+
+# Check if libraries are installed; install missing ones
+installed_libs <- libs %in% rownames(installed.packages())
+if (any(installed_libs == FALSE)) {
+    install.packages(libs[!installed_libs])
+}
+
+# Load the libraries
+library(tidyverse)
+library(nycflights13)
+```
+
+**Explanation:**  
+- `libs` is a vector of package names.  
+- We check if each is installed; if not, we install them.  
+- Then we load them with `library()`.  
+
+---
+
+## Understanding Tidy Data
+
+Tidy data follows a specific structure that makes data analysis more straightforward. According to **Hadley Wickham**, there are three interrelated rules that make a dataset tidy:
+
+1. **Each variable forms a column.**  
+2. **Each observation forms a row.**  
+3. **Each type of observational unit forms a table.**
+
+### Why Tidy Data?
+
+**Advantages** of having tidy data:
+
+1. **Consistency**: A standardized data format simplifies the learning and application of data manipulation tools across the tidyverse (e.g., `dplyr`, `ggplot2`, `tidyr`).  
+2. **Efficiency**: Tidy data leverages R’s vectorized operations, resulting in more concise, readable, and faster-running code.  
+3. **Integration**: Many R packages assume data is “tidy.” You can seamlessly pass tidy data between modeling, plotting, and wrangling functions.
+
+---
+
+## Core tidyr Functions
+
+The `tidyr` package offers several functions that help **reshape** and **tidy** data. The **core** functions include:
+
+1. **`pivot_longer()`**: Converts wide data to long (“gathering” columns).  
+2. **`pivot_wider()`**: Converts long data to wide (“spreading” columns).  
+3. **`separate()`**: Splits a single column into multiple columns.  
+4. **`unite()`**: Combines multiple columns into one.  
+
+We will demonstrate each function with examples – some from the built-in `tidyr` examples like `billboard`, others can be your own data or from `nycflights13`.
+
+---
+
+### `pivot_longer()`
+
+`pivot_longer()` transforms data from **wide** format to **long** format, turning multiple column headers into **key-value** pairs.
+
+#### Example: Tidying the `billboard` Dataset
+
+The `billboard` dataset records the billboard rank of songs in the year 2000.  
+Each row represents a song, and each `wk#` column represents that song’s rank in a specific week.
+
+```{r}
+# Display the first few rows of the billboard dataset
+billboard
+```
+
+**Observations**:  
+- Variables include `artist`, `track`, `date.entered`, plus columns `wk1` through `wk76` for each weekly rank.  
+- We need to transform all `wk##` columns into two columns: “week” (the name) and “rank” (the value).
+
+**Pivoting Longer**:
+
+```{r}
+# Tidy the billboard dataset by pivoting longer
+billboard_tidy <- billboard %>% 
+  pivot_longer(
+    cols = starts_with("wk"), 
+    names_to = "week", 
+    values_to = "rank",
+    values_drop_na = TRUE
+  ) %>% 
+  mutate(
+    week = parse_number(week)
+  )
+
+# Display the tidied dataset
+billboard_tidy
+```
+
+**Explanation**:
+
+- `cols = starts_with("wk")`: selects all columns whose names start with `"wk"`.  
+- `names_to = "week"`: The original column names (`wk1`, `wk2`, etc.) are stored in a new column `week`.  
+- `values_to = "rank"`: The values from those columns go into a new column `rank`.  
+- `values_drop_na = TRUE`: Any rows with `NA` in `rank` are removed.  
+- `mutate(week = parse_number(week))`: Converts `"wk1", "wk2", ..."` into numeric `1, 2, ...`.
+
+---
+
+#### Many variables in column names
+
+A more challenging scenario arises when column names contain **multiple variables**. For example, the `who2` dataset:
+
+```{r}
+who2
+```
+
+**`who2`** records tuberculosis data. There are columns `country` and `year`, plus ~56 columns like `sp_m_014`, `ep_m_4554`, `rel_m_3544`, etc. Each column name is made of three pieces separated by `_`:  
+1. The method of diagnosis (`sp`, `rel`, `ep`).  
+2. The gender (`m` or `f`).  
+3. The age range (`014`, `1524`, `2535`, `3544`, `4554`, or `65`).
+
+Hence we have multiple variables embedded in the column name. We can fix this with:
+
+```{r}
+who2_long <- who2 %>% 
+  pivot_longer(
+    cols = !(country:year),
+    names_to = c("diagnosis", "gender", "age"), 
+    names_sep = "_",
+    values_to = "count"
+  )
+
+who2_long
+```
+
+**Explanation**:
+
+- `cols = !(country:year)`: Pivot all columns except `country` through `year`.  
+- `names_to = c("diagnosis", "gender", "age")`: We want to split the column name into these three pieces.  
+- `names_sep = "_"`: The pieces are separated by an underscore in the column name.  
+- `values_to = "count"`: The numeric cell values become `count`.
+
+Alternatively, if the pattern is more complex, we can use `names_pattern` with a regex approach.
+
+---
+
+#### Data and variable names in the column headers
+
+Another advanced scenario is when column names mix variable names **and** variable values. For instance, the `household` dataset might have columns like `name_1`, `dob_1`, `name_2`, `dob_2`, which hold the **child** number (1 or 2) plus the type of data (`name`, `dob`). We can parse that with `names_to = c(".value", "child")`:
+
+
+```{r}
+household
+```
+
+
+```{r}
+household_long <- household %>%
+  pivot_longer(
+    cols = !family,
+    names_to = c(".value", "child"),
+    names_sep = "_",
+    values_drop_na = TRUE
+  ) %>%
+  mutate(child = parse_number(child))
+
+household_long
+```
+
+The `.value` sentinel indicates that the first part of the column name is an actual new column name, not just data.
+
+---
+
+### `pivot_wider()`
+
+`pivot_wider()` is the inverse of `pivot_longer()`. It spreads key-value pairs across multiple columns, going from a **long** to a **wide** format.
+
+**Example**: The `cms_patient_experience` dataset:
+
+```{r}
+cms_patient_experience
+```
+
+Might have columns like `org_id`, `measure_cd`, and `prf_rate`. We can pivot so each measure code becomes a separate column:
+
+```{r}
+cms_wide <- cms_patient_experience %>% 
+  pivot_wider(
+    id_cols = starts_with("org"),
+    names_from = measure_cd,
+    values_from = prf_rate
+  )
+
+cms_wide
+```
+
+**Explanation**:
+
+- `id_cols`: columns that uniquely identify each row (often IDs).  
+- `names_from = measure_cd`: each unique measure code becomes a column name.  
+- `values_from = prf_rate`: the numeric values to place in those columns.
+
+---
+
+### `separate()`
+
+`separate()` splits a single column into multiple columns based on a separator. By default, it splits on **non-alphanumeric** characters, but you can specify `sep`.
+
+**Example**:
+
+```{r}
+df <- tibble(x = c(NA, "x.y", "x.z", "y.z"))
+
+df
+```
+
+```{r}
+df_separated <- df %>%
+  separate(x, into = c("A", "B"))
+
+df_separated
+```
+
+**Explanation**:
+
+- If a row is `"x.y"`, after separating, `A = "x"`, `B = "y"`.  
+- `NA` remains `NA` for both A and B.  
+- `separate(..., sep = "_")` would explicitly separate on underscores if needed.
+
+**Handling partial splits**:
+
+```{r}
+df_separated_skip <- df %>%
+  separate(x, into = c(NA, "B"))  # discard first piece
+
+df_separated_skip
+```
+
+---
+
+### `unite()`
+
+`unite()` is the opposite of `separate()`. It combines multiple columns into a single column by concatenating their string values.
+
+**Example**:
+
+```{r}
+df <- expand_grid(x = c("a", NA), y = c("b", NA))
+
+df
+```
+
+```{r}
+
+df_united <- df %>%
+  unite("z", x:y, remove = FALSE, na.rm = TRUE)
+
+df_united
+```
+
+**Explanation**:
+
+- We combine `x` and `y` into a new column `z`.  
+- `na.rm = TRUE` discards `NA` from the concatenation.  
+- `remove = FALSE` keeps the original columns.
+
+---
+
+## Advanced tidyr Functions
+
+For more complex situations or missing data scenarios, tidyr provides:
+
+- **`fill()`**: Fill down (or up) missing values.  
+- **`replace_na()`**: Replace `NA` with a specified value or set of values.  
+- **`complete()`**: Ensure all combinations of specified variables exist, filling missing ones with `NA` or another value.
+
+### `fill()`
+
+Carries forward (or backward) non-missing values:
+
+```{r}
+df_fill <- tibble(
+  group = c("A", "A", "A", "B", "B", "B"),
+  value = c(1, NA, 3, NA, 5, NA)
+)
+
+df_fill
+```
+
+
+```{r}
+
+df_filled <- df_fill %>%
+  group_by(group) %>%
+  fill(value, .direction = "down") %>% 
+  ungroup()
+
+df_filled
+```
+
+```{r}
+df_filled <- df_fill %>%
+  group_by(group) %>%
+  fill(value, .direction = "downup") %>% 
+  ungroup()
+
+df_filled
+```
+
+
+
+---
+
+### `replace_na()`
+
+Replaces `NA` with custom values:
+
+```{r}
+df_replace_na <- tibble(
+  name = c("Alice", "Bob", "Charlie", "David"),
+  score = c(85, NA, 78, NA)
+)
+
+df_replace_na
+```
+
+
+```{r}
+df_replaced <- df_replace_na %>%
+  replace_na(list(score = 0))
+
+df_replaced
+```
+
+---
+
+### `complete()`
+
+Ensures all combinations of specified variables appear:
+
+```{r}
+df_complete <- tibble(
+  group = c("A", "A", "B"),
+  category = c("X", "Y", "X"),
+  value = c(10, 20, 30)
+)
+
+df_complete
+```
+
+```{r}
+
+df_fully_complete <- df_complete %>%
+  complete(group, category)
+
+df_fully_complete
+```
+
+---
+
+## Exercises
+
+### Exercise 1: Create a Tidy Dataframe
+
+**Question:** Create a dataframe `df` with the following columns: - `id`: Integers from 1 to 5 - `name`: Characters "A", "B", "C", "D", "E" - `score1`, `score2`, `score3`: Random integers between 50 and 100 (use `sample()` function)
+
+```{r}
+
+
+```
+
+### Exercise 2: Pivot Longer
+
+**Question:** Transform the dataframe `df` from wide to long format using `pivot_longer()`, gathering the `score1`, `score2`, and `score3` columns into two new columns: `test` and `score`.
+
+```{r}
+
+
+```
+
+### Exercise 3: Pivot Wider
+
+**Question:** Using the `df_long` dataframe from the previous exercise, pivot it back to wide format using `pivot_wider()`, spreading the `test` column into separate `score1`, `score2`, and `score3` columns.
+
+```{r}
+
+
+```
+
+### Exercise 4: Separate Columns
+
+**Question:** Create a dataframe `df_dates` with a column `datetime` containing date and time in the format `"YYYY-MM-DD HH:MM:SS"` (just type proper values inside the `c()` function).
+Split this column into two separate columns: `date` and `time`.
+
+```{r}
+
+
+```
+
+**Separating the `datetime` Column:**
+
+```{r}
+
+
+```
+
+### Exercise 5: Unite Columns
+
+**Question:** Using the `df_separated` dataframe from the previous exercise, combine the `date` and `time` columns back into a single `datetime` column using `unite()`.
+
+```{r}
+
+
+
+```
+
+### Exercise 6: Handling Missing Values with fill()
+
+**Question:** Create a dataframe `df_missing` with `id` and `score` columns with some missing values in the `score` column (use `tibble()` function) .
+Use `fill()` to propagate the last non-missing value forward.
+
+```{r}
+
+
+```
+
+**Filling Missing Values:**
+
+```{r}
+
+
+```
+
+### Exercise 7: Replacing NAs with Specific Values
+
+**Question:** Using the `df_missing` dataframe, replace all `NA` values in the `score` column with the average score.
+
+```{r}
+
+
+
+```
+
+### Exercise 8: Complete Missing Combinations
+
+**Question:** Create a dataframe `df_complete` with `id` and `category` columns, but missing some combinations.
+Use `complete()` to ensure all combinations are present, filling missing `value` with `0`.
+
+```{r}
+
+
+
+```
+
+**Completing the Dataframe:**
+
+```{r}
+
+
+
+```
+
+### Exercise 9: Advanced Pivoting with Multiple Variables
+
+**Question:** Create a dataframe `df_multi` where column names contain multiple variables separated by underscores (e.g., `type_gender_age`).
+Use `separate()` to split these into individual variables.
+
+```{r}
+
+
+
+```
+
+**Separating Multiple Variables:**
+
+```{r}
+
+
+
+```
+
+### Exercise 10: Combining tidyr and dplyr for Data Analysis
+
+**Question:** Using the `flights` dataset from `nycflights13`, perform the following steps: 1.
+Filter flights that departed in January.
+2.
+Select relevant columns: `year`, `month`, `day`, `dep_time`, `arr_time`, `carrier`, `tailnum`.
+3.
+Separate the `dep_time` and `arr_time` into `dep_hour` and `dep_minute`, `arr_hour` and `arr_minute`.
+4.
+Unite `dep_hour` and `dep_minute` into `departure_time`, and `arr_hour` and `arr_minute` into `arrival_time`.
+5.
+Replace any `NA` in `departure_time` or `arrival_time` with `"00:00"`.
+
+```{r}
+
+
+
+```
+
+---
+
+## Summary
+
+In this session, you explored **tidying data** with the **`tidyr`** package:
+
+- **Core functions** like `pivot_longer()`, `pivot_wider()`, `separate()`, and `unite()` to reshape data.  
+- **Advanced functions** (`fill()`, `replace_na()`, `complete()`) for dealing with missing or partial data.  
+- How these transformations align with the **tidy data principles** of having one variable per column and one observation per row.
+
+**Key Points**:
+
+- Tidy data is essential for a smooth analytical workflow in R.  
+- `pivot_longer()` and `pivot_wider()` help you reshape data between wide and long formats.  
+- `separate()` and `unite()` help split or combine column values.  
+- Functions like `fill()`, `replace_na()`, and `complete()` handle missing or incomplete data.  
+- Integrating tidyr with **dplyr** allows for robust data cleaning pipelines.
+
+**Next Steps**:
+
+- **Practice**: Apply tidyr transformations to real-world messy datasets.  
+- **Combine**: Use tidyr with `dplyr` for data manipulation, `ggplot2` for visualization.  
+- **Explore**: Look at advanced arguments like `names_pattern` (regular expressions) in `pivot_longer()` and more.  
+- **Real-world projects**: Tidy data is critical for reproducible, scalable data analyses.
+
+---
+
+# References and Additional Resources
+
+- [**tidyr Documentation**](https://tidyr.tidyverse.org/)  
+- [**R for Data Science** (Hadley Wickham & Garrett Grolemund)](https://r4ds.had.co.nz/)  
+- [**Advanced R** (Hadley Wickham)](https://adv-r.hadley.nz/)  
+- [**Tidyverse Cheatsheets**](https://www.rstudio.com/resources/cheatsheets/)  
+- [**Swirl**: Interactive R tutorials, including data tidying topics](https://swirlstats.com/students.html)
+
