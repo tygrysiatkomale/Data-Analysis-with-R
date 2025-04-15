@@ -1,0 +1,549 @@
+---
+title: "14E - ggplot2 1"
+---
+
+# Introduction to ggplot2 and the Grammar of Graphics
+
+`ggplot2` is a powerful and flexible R package for creating data visualizations. Based on the principles of **The Grammar of Graphics**, `ggplot2` allows you to build complex plots from simple components systematically. This notebook serves as an extensive introduction to `ggplot2`, guiding you through its foundational concepts, various layers, and practical examples to help you master data visualization in R.
+
+---
+
+## Setting Up the Environment
+
+Before diving into data visualization with `ggplot2`, ensure that you have the necessary libraries installed and loaded. We will use the `tidyverse` package, which includes `ggplot2` among other essential packages, the `palmerpenguins` dataset for practical examples, and the `ggthemes` package for additional themes and color palettes.
+
+```{r}
+# Define the required libraries
+libs <- c("tidyverse", "palmerpenguins", "ggthemes")
+
+# Check if libraries are installed; install missing ones
+installed_libs <- libs %in% rownames(installed.packages())
+if (any(installed_libs == FALSE)) {
+    install.packages(libs[!installed_libs])
+} else{
+  print("All the libraries already installed")
+}
+
+# Load the libraries
+library(tidyverse)
+library(palmerpenguins)
+library(ggthemes)
+
+```
+
+**Explanation:**
+
+- **`libs`**: A vector containing the names of required libraries.
+- **Installation Check**: The script checks if each library in `libs` is installed. If any are missing, it installs them using `install.packages()`. If all are installed, it prints a confirmation message.
+- **`library()`**: Loads the specified libraries into the R session, making their functions available for use.
+
+---
+
+## Understanding The Grammar of Graphics
+
+**The Grammar of Graphics** is a framework that breaks down graphs into semantic components such as data, aesthetics, and geometric objects. `ggplot2` implements this grammar, allowing users to build plots layer by layer systematically.
+
+### Core Concepts:
+
+1. **Data**: The dataset you want to visualize.
+2. **Aesthetics (aes)**: Mappings between data variables and visual properties (e.g., x and y axes, color, shape).
+3. **Geometries (Geoms)**: The type of plot (e.g., points, lines, bars).
+4. **Facets**: Subplots that split data into subsets based on one or more variables.
+5. **Statistics**: Statistical transformations applied to the data (e.g., smoothing lines).
+6. **Coordinates**: The coordinate system used (e.g., Cartesian, polar).
+7. **Themes**: Non-data ink elements that enhance the appearance of the plot (e.g., background, gridlines).
+
+By understanding these components, you can create complex and informative visualizations by layering these elements.
+
+---
+
+## Core Components of ggplot2
+
+### Data
+
+The foundation of any plot. It is typically a data frame containing the variables you wish to visualize.
+
+### Aesthetics (aes)
+
+Define how data variables are mapped to visual properties. Common aesthetics include:
+
+- `x`: Variable mapped to the x-axis.
+- `y`: Variable mapped to the y-axis.
+- `color`: Variable mapped to the color of geoms.
+- `shape`: Variable mapped to the shape of points.
+- `size`: Variable mapped to the size of geoms.
+
+### Geometries (Geoms)
+
+Geometrical objects that represent data points on the plot. Examples include:
+
+- `geom_point()`: Scatterplot points.
+- `geom_line()`: Lines connecting data points.
+- `geom_bar()`: Bars for bar charts.
+- `geom_histogram()`: Bins for histograms.
+- `geom_boxplot()`: Boxes for boxplots.
+
+### Facets
+
+Divide the plot into multiple panels based on one or more categorical variables.
+
+- `facet_wrap()`: Wraps facets into multiple rows and columns.
+- `facet_grid()`: Creates a grid of facets based on two variables.
+
+### Statistics
+
+Apply statistical transformations to the data.
+
+- `stat_smooth()`: Adds a smoothing line (e.g., regression line).
+- `stat_summary()`: Summarizes data within groups.
+
+### Coordinates
+
+Define the coordinate system used for the plot.
+
+- `coord_cartesian()`: Default Cartesian coordinates.
+- `coord_flip()`: Flips the x and y axes.
+- `coord_polar()`: Polar coordinates for circular plots.
+
+### Themes
+
+Control the non-data elements of the plot, such as text, background, and gridlines.
+
+- `theme_bw()`: Black and white theme.
+- `theme_minimal()`: Minimalist theme.
+- `theme_classic()`: Classic theme with axis lines.
+
+---
+
+## Building Plots with ggplot2
+
+Creating plots with `ggplot2` involves initializing a ggplot object with data and aesthetics, then adding layers such as geoms, facets, and themes.
+
+### Basic Scatterplot
+
+Let's start with a simple scatterplot using the `penguins` dataset.
+
+```{r}
+# Basic scatterplot of flipper length vs. body mass
+ggplot(data = penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point()
+
+```
+
+
+
+```{r}
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+
+**Explanation:**
+
+- **`ggplot()`**: Initializes the plot with the `penguins` dataset and maps `flipper_length_mm` to the x-axis and `body_mass_g` to the y-axis.
+- **`geom_point()`**: Adds a layer of points to create a scatterplot.
+
+### Adding Layers
+
+Layers can include additional geoms, statistical transformations, and themes.
+
+```{r}
+# Scatterplot with a smoothing line
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue")
+
+```
+
+**Explanation:**
+
+- **`geom_smooth(method = "lm", se = FALSE, color = "blue")`**: Adds a linear regression line without the confidence interval shading (`se = FALSE`) in blue color.
+
+### Customizing Aesthetics
+
+Map variables to aesthetics to enhance the visualization.
+
+```{r}
+
+# Scatterplot with color and shape mapped to species
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g, color = species, shape = species)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+**Explanation:**
+
+- **`color = species, shape = species`**: Maps the `species` variable to both color and shape aesthetics, differentiating species by color and point shape.
+- **`geom_smooth()`**: Adds regression lines for each species.
+
+### Faceting
+
+Create subplots based on categorical variables.
+
+```{r}
+
+# Scatterplot faceted by island
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species, shape = species)) +
+  facet_wrap(~island) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+
+```
+
+**Explanation:**
+
+- **`facet_wrap(~island)`**: Creates separate panels for each island.
+- **`theme_minimal()`**: Applies a minimalist theme for a cleaner look.
+
+### Themes and Labels
+
+Enhance the plot's appearance and add informative labels.
+
+```{r}
+
+# Enhanced scatterplot with labels and a custom theme
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species, shape = species), size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(
+    title = "Relationship Between Flipper Length and Body Mass in Penguins",
+    subtitle = "Data from Palmer Archipelago, 2013",
+    x = "Flipper Length (mm)",
+    y = "Body Mass (g)",
+    color = "Species",
+    shape = "Species"
+  ) +
+  scale_color_colorblind() +
+  theme_bw()
+
+```
+
+**Explanation:**
+
+- **`size = 3, alpha = 0.7`**: Increases the size of points and adds transparency.
+- **`labs()`**: Adds title, subtitle, axis labels, and legend titles.
+- **`scale_color_colorblind()`**: Applies a colorblind-friendly palette from the `ggthemes` package.
+- **`theme_bw()`**: Applies a black and white theme for contrast.
+
+---
+
+## Practical Examples
+
+### Example 1: Scatterplot with Regression Line
+
+Creating a scatterplot with a linear regression line to examine the relationship between flipper length and body mass.
+
+```{r}
+
+# Scatterplot with linear regression line
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species), size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(
+    title = "Flipper Length vs. Body Mass",
+    x = "Flipper Length (mm)",
+    y = "Body Mass (g)",
+    color = "Species"
+  ) +
+  theme_light()
+
+```
+
+**Explanation:**
+
+- **`geom_point(aes(color = species), size = 2)`**: Plots points colored by species with a specified size.
+- **`geom_smooth(method = "lm", se = TRUE, color = "black")`**: Adds a linear regression line with confidence intervals.
+- **`theme_light()`**: Applies a light theme to the plot.
+
+### Example 2: Boxplot
+
+Visualizing the distribution of body mass across different species using boxplots.
+
+```{r}
+
+# Boxplot of body mass by species
+penguins %>% 
+  ggplot(aes(x = species, y = body_mass_g, fill = species)) +
+  geom_boxplot() +
+  labs(
+    title = "Body Mass Distribution by Penguin Species",
+    x = "Species",
+    y = "Body Mass (g)",
+    fill = "Species"
+  ) +
+  theme_minimal()
+
+```
+
+**Explanation:**
+
+- **`geom_boxplot()`**: Creates boxplots showing the distribution of body mass for each species.
+- **`fill = species`**: Fills the boxplots with colors corresponding to species.
+- **`theme_minimal()`**: Applies a minimalist theme.
+
+### Example 3: Histogram
+
+Displaying the distribution of flipper lengths using a histogram.
+
+```{r}
+
+# Histogram of flipper lengths
+penguins %>% 
+  ggplot(aes(x = flipper_length_mm, fill = species)) +
+  geom_histogram(binwidth = 5, alpha = 0.7, position = "identity") +
+  labs(
+    title = "Distribution of Flipper Lengths",
+    x = "Flipper Length (mm)",
+    y = "Count",
+    fill = "Species"
+  ) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_classic()
+
+```
+
+**Explanation:**
+
+- **`geom_histogram(binwidth = 5, alpha = 0.7, position = "identity")`**: Creates overlapping histograms for each species with a bin width of 5 mm and semi-transparent fill.
+- **`scale_fill_brewer(palette = "Set1")`**: Applies a Brewer color palette for distinct colors.
+- **`theme_classic()`**: Applies a classic theme with minimal gridlines.
+
+### Example 4: Bar Chart
+
+Creating a bar chart to show the count of penguins by island.
+
+```{r}
+
+# Bar chart of penguin counts by island
+penguins %>% 
+  ggplot(aes(x = island, fill = species)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Penguin Counts by Island and Species",
+    x = "Island",
+    y = "Number of Penguins",
+    fill = "Species"
+  ) +
+  theme_economist()
+
+```
+
+**Explanation:**
+
+- **`geom_bar(position = "dodge")`**: Creates side-by-side bars for each species within each island.
+- **`theme_economist()`**: Applies the Economist theme from `ggthemes` for a professional look.
+
+---
+
+## Saving and Exporting Plots
+
+After creating a plot, you may want to save it for reports, presentations, or further analysis. The `ggsave()` function is used to save the most recent plot to a file.
+
+```{r}
+
+# Create and save a scatterplot
+scatter_plot <- penguins %>% 
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species), size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(
+    title = "Flipper Length vs. Body Mass",
+    x = "Flipper Length (mm)",
+    y = "Body Mass (g)",
+    color = "Species"
+  ) +
+  theme_light()
+
+# Display the plot
+scatter_plot
+
+# Save the plot to a file
+ggsave(filename = "scatter_plot.png", plot = scatter_plot, width = 8, height = 6, dpi = 300)
+
+```
+
+**Explanation:**
+
+- **`scatter_plot`**: Stores the ggplot object for reuse.
+- **`ggsave()`**: Saves the plot to a PNG file with specified dimensions and resolution.
+
+**Parameters:**
+
+- **`filename`**: Name of the file to save the plot.
+- **`plot`**: The ggplot object to save.
+- **`width` & `height`**: Dimensions of the saved plot in inches.
+- **`dpi`**: Resolution of the saved plot in dots per inch.
+
+---
+
+## Exercises
+
+
+### Exercise 1: Create a Basic Scatterplot
+
+**Question:** Using the `penguins` dataset, create a scatterplot of bill length (`bill_length_mm`) vs. bill depth (`bill_depth_mm`). Color the points by species.
+
+```{r}
+
+
+```
+
+**Solution Explanation:**
+
+- **Mapping Aesthetics**: `bill_length_mm` to x-axis, `bill_depth_mm` to y-axis, and `species` to color.
+- **`geom_point()`**: Adds points with increased size and slight transparency.
+- **Labels and Theme**: Adds informative labels and applies a minimalist theme for clarity.
+
+### Exercise 2: Add a Regression Line to the Scatterplot
+
+**Question:** Modify the scatterplot from Exercise 1 by adding a linear regression line for each species without the confidence interval.
+
+```{r}
+
+
+```
+
+**Solution Explanation:**
+
+- **`geom_smooth(method = "lm", se = FALSE)`**: Adds linear regression lines for each species without shading the confidence interval.
+- **Result**: The plot now shows both the data points and the trend lines, allowing for comparison across species.
+
+### Exercise 3: Facet the Scatterplot by Island
+
+**Question:** Further modify the scatterplot by faceting it based on the island each penguin belongs to.
+
+```{r}
+
+
+
+```
+
+**Solution Explanation:**
+
+- **`facet_wrap(~ island)`**: Creates separate panels for each island, allowing for island-specific comparisons.
+- **Benefits**: Helps identify patterns or differences in bill dimensions across different islands.
+
+### Exercise 4: Create a Boxplot of Body Mass by Species
+
+**Question:** Using the `penguins` dataset, create a boxplot that shows the distribution of body mass (`body_mass_g`) for each species.
+
+```{r}
+
+```
+
+**Solution Explanation:**
+
+- **`geom_boxplot()`**: Creates boxplots showing the median, quartiles, and potential outliers of body mass for each species.
+- **`fill = species`**: Fills the boxes with colors corresponding to each species.
+- **`theme_economist()`**: Applies a professional theme from the `ggthemes` package for a polished look.
+
+### Exercise 5: Histogram of Flipper Lengths
+
+**Question:** Create a histogram to visualize the distribution of flipper lengths (`flipper_length_mm`) in the `penguins` dataset. Use different colors for each species and adjust the bin width to 5 mm.
+
+```{r}
+
+
+```
+
+**Solution Explanation:**
+
+- **`geom_histogram(binwidth = 5, alpha = 0.7, position = "identity")`**: Creates overlapping histograms with a bin width of 5 mm and semi-transparent fills to differentiate species.
+- **`scale_fill_brewer(palette = "Set1")`**: Applies a distinct color palette for clarity.
+- **`theme_classic()`**: Provides a clean, classic look to the plot.
+
+### Exercise 6: Bar Chart of Penguin Counts by Island and Species
+
+**Question:** Create a bar chart that shows the number of penguins for each species on each island. Use different colors for species and arrange the bars side by side.
+
+```{r}
+
+```
+
+**Solution Explanation:**
+
+- **`geom_bar(position = "dodge")`**: Creates side-by-side bars for each species within each island.
+- **`fill = species`**: Colors the bars based on species.
+- **`theme_stata()`**: Applies a theme similar to Stata's default for a distinct appearance.
+
+### Exercise 7: Density Plot of Body Mass by Species
+
+**Question:** Create a density plot to visualize the distribution of body mass (`body_mass_g`) for each penguin species. Use different fill colors and adjust transparency for better visualization.
+
+```{r}
+
+```
+
+**Solution Explanation:**
+
+- **`geom_density(alpha = 0.5)`**: Creates overlapping density plots with 50% transparency to distinguish species.
+- **`scale_fill_brewer(palette = "Dark2")`**: Applies a darker color palette for better contrast.
+- **`theme_minimal()`**: Maintains a clean and simple aesthetic.
+
+### Exercise 8: Save a Plot to a File
+
+**Question:** Save the scatterplot from Exercise 3 to a PNG file named `penguins_scatterplot.png` with a width of 10 inches and a height of 8 inches.
+
+```{r}
+
+
+```
+
+**Solution Explanation:**
+
+- **`ggsave()`**: Saves the specified plot to a file with defined dimensions and resolution.
+- **Parameters**:
+  - **`filename`**: The name of the file to save.
+  - **`plot`**: The ggplot object to save.
+  - **`width` & `height`**: Dimensions of the saved plot in inches.
+  - **`dpi`**: Resolution in dots per inch, ensuring high quality.
+
+---
+
+
+## Summary
+
+In this comprehensive introduction to `ggplot2`, you learned about the foundational concepts of The Grammar of Graphics and how `ggplot2` implements these principles to create versatile and informative visualizations. You explored core components such as data, aesthetics, geoms, facets, and themes, and practiced building various types of plots including scatterplots, boxplots, histograms, and bar charts. Additionally, you learned how to customize plots, add regression lines, facet data, and save your visualizations for future use. The exercises provided hands-on experience, reinforcing your understanding and enabling you to apply these skills to your own datasets effectively.
+
+**Next Steps:**
+
+- **Advanced ggplot2 Features**: Explore interactive visualizations with `plotly` or animations with `gganimate`.
+- **Custom Themes**: Create and apply custom themes to standardize the appearance of your plots.
+- **Faceting with Multiple Variables**: Use `facet_grid()` to facet plots based on two variables simultaneously.
+- **Statistical Transformations**: Learn more about statistical layers like `geom_smooth()` and `stat_summary()`.
+- **Integrating with Other Packages**: Combine `ggplot2` with data manipulation packages like `dplyr` and `tidyr` for streamlined workflows.
+
+---
+
+## References and Additional Resources
+
+- **ggplot2 Documentation**: [https://ggplot2.tidyverse.org/](https://ggplot2.tidyverse.org/)
+- **The Grammar of Graphics by Leland Wilkinson**: [Book Link](https://www.amazon.com/Grammar-Graphics-Leland-Wilkinson/dp/0387245447)
+- **R for Data Science by Hadley Wickham & Garrett Grolemund**: [https://r4ds.had.co.nz/](https://r4ds.had.co.nz/)
+- **ggplot2 Cheatsheet**: [https://rstudio.com/resources/cheatsheets/](https://rstudio.com/resources/cheatsheets/)
+- **Palmer Penguins Package Documentation**: [https://allisonhorst.github.io/palmerpenguins/](https://allisonhorst.github.io/palmerpenguins/)
+- **ggthemes Package Documentation**: [https://ggplot2.tidyverse.org/reference/ggthemes.html](https://ggplot2.tidyverse.org/reference/ggthemes.html)
+
+---
+
+# Additional Resources
+
+- **Interactive Learning with swirl**: Learn R programming and data science interactively within R.
+  - [Swirl - Learn R in R](https://swirlstats.com/students.html)
+- **DataCamp ggplot2 Courses**: Comprehensive online courses to master data visualization in R.
+  - [DataCamp ggplot2 Courses](https://www.datacamp.com/courses/tech:ggplot2)
+- **ggplot2 Tutorials by RStudio**: Step-by-step tutorials to build proficiency in ggplot2.
+  - [RStudio ggplot2 Tutorials](https://ggplot2.tidyverse.org/articles/ggplot2-specs.html)
+- **Advanced ggplot2 by Hadley Wickham**: Dive deeper into advanced features and customizations.
+  - [Advanced ggplot2](https://ggplot2.tidyverse.org/reference/index.html)
+
+---
+
