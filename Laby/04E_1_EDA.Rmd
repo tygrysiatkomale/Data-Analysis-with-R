@@ -1,0 +1,619 @@
+---
+title: "Exploratory Data Analysis (EDA): The Big Mac Index Case Study"
+author: "Piotr Kosowski"
+date: "2025-04-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introduction to Exploratory Data Analysis (EDA)
+
+## What is EDA?
+
+Exploratory Data Analysis (EDA) is a crucial first step in any data analysis project. It's an approach to analyzing datasets to summarize their main characteristics, often using visual methods. EDA is about getting to know your data, discovering patterns, spotting anomalies (like outliers or missing data), testing initial hypotheses, and checking assumptions before proceeding with more formal modeling or analysis.
+
+**Key Objectives of EDA:**
+
+1.  **Understand Data Structure:** Identify variables, data types, and the overall shape of the dataset.
+2.  **Clean the Data:** Detect and handle missing values, errors, or inconsistencies.
+3.  **Summarize Data:** Calculate descriptive statistics to understand central tendencies and variability.
+4.  **Identify Patterns and Relationships:** Explore connections between variables using visualizations and statistics.
+5.  **Detect Outliers and Anomalies:** Find unusual data points that might require further investigation or special handling.
+6.  **Formulate Hypotheses:** Generate questions or initial hypotheses based on observed patterns.
+7.  **Inform Modeling Strategy:** Guide the selection of appropriate statistical models and feature engineering techniques.
+
+## The Big Mac Index Dataset
+
+In this notebook, we will perform EDA on the **Big Mac Index** dataset, famously published by *The Economist*. This index uses the price of a Big Mac burger in different countries to informally measure **Purchasing Power Parity (PPP)** and assess whether currencies are over- or undervalued relative to the US Dollar.
+
+## Research Questions
+
+We will explore this dataset to answer questions like:
+
+1.  What is the overall distribution of Big Mac prices (in local currency and USD)?
+2.  How do prices vary across different countries and continents over time?
+3.  Are there significant outliers in the data? What might they represent?
+4.  Is there a relationship between Big Mac prices and economic indicators like GDP?
+5.  Which countries exhibit the highest price inflation according to the index?
+6.  How do currency valuations (based on the index) deviate from actual market exchange rates? Have these deviations changed over time?
+7.  How does adjusting for GDP per capita change the interpretation of currency valuation?
+
+## Setting Up the Environment
+
+First, we need to install and load the R packages necessary for our analysis. We'll primarily use the `tidyverse` suite for data manipulation and visualization, `lubridate` for easier date handling, `scales` for plot formatting, `patchwork` for combining plots, and `skimr` for enhanced summary statistics.
+
+```{r}
+# List of required packages
+libs <- c("tidyverse", "lubridate", "scales", "skimr", "patchwork", "ggrepel")
+
+# Check if packages are installed, install missing ones
+installed_libs <- libs %in% rownames(installed.packages())
+
+if (any(!installed_libs)) {
+  install.packages(libs[!installed_libs])
+}
+
+# Load the packages
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(skimr)
+library(patchwork)
+library(ggrepel) # For non-overlapping labels in plots
+
+# Set consistent theme for ggplot2
+theme_set(theme_minimal(base_size = 12))
+```
+
+# 1. Data Loading and Initial Inspection
+
+Let's load the dataset and perform an initial inspection to understand its basic structure.
+
+```{r}
+big_mac_raw <- read_csv("../Datasets/Big_mac.csv")
+```
+
+## 1.1. First Look at the Data
+
+We'll use several functions to get a quick overview:
+
+-   `dim()`: Shows the number of rows and columns.
+-   `head()` / `tail()`: Display the first/last few rows.
+-   `glimpse()`: Provides a transposed view of the data, showing column names, data types, and the first few values (part of `dplyr`).
+-   `names()`: Lists all column names.
+
+```{r}
+# Dimensions
+dim(big_mac_raw)
+```
+
+```{r}
+# First few rows
+head(big_mac_raw)
+```
+
+```{r}
+# Last few rows
+tail(big_mac_raw)
+```
+
+```{r}
+# Structure and data types
+glimpse(big_mac_raw)
+```
+
+```{r}
+# Column names
+names(big_mac_raw)
+```
+
+**Initial Observations:**
+
+* The dataset has `r nrow(big_mac_raw)` rows and `r ncol(big_mac_raw)` columns.
+* Column names seem reasonably descriptive, but `name` could be clearer (e.g., `country`).
+* The `date` column is currently of type `<date>`, which is good. If it were character, we'd need to convert it.
+* We have prices in `local_price`, the exchange rate `dollar_ex`, and a calculated `dollar_price`.
+* There are several columns related to currency valuation (`usd_raw`, `eur_raw`, etc.) and GDP adjustment (`gdp_dollar`, `adj_price`, `usd_adjusted`, etc.).
+* Several columns (`gdp_dollar`, `adj_price`, etc.) seem to have many `NA` values, especially in the earlier rows shown by `head()`.
+
+## 1.2. Basic Summary Statistics
+
+The `summary()` function provides basic descriptive statistics for each column. For numeric columns, it gives min, max, quartiles, mean, and median. For character/factor columns, it shows counts. `skimr::skim()` offers a more detailed summary.
+
+```{r}
+summary(big_mac_raw)
+```
+
+```{r}
+# Skim provides more detailed summaries, including missing counts and histograms for numeric vars
+skim(big_mac_raw)
+```
+
+**Observations from Summaries:**
+
+* Confirms the presence of many `NA`s in GDP-related and adjusted price columns. `dollar_price` also has some `NA`s.
+* `local_price` has a vast range due to different currencies and inflation (min `r min(big_mac_raw$local_price, na.rm=TRUE)`, max `r max(big_mac_raw$local_price, na.rm=TRUE)`).
+* `dollar_price` ranges from very low values (potentially indicating data issues or extreme undervaluation) to quite high values.
+* The `date` column ranges from `r min(big_mac_raw$date)` to `r max(big_mac_raw$date)`.
+* `name` (country) and `currency_code` are character columns.
+
+# 2. Data Cleaning and Preparation
+
+Based on the initial inspection, we need to perform some cleaning and preparation steps.
+
+## 2.1. Renaming Columns
+
+As noted, `name` is less descriptive than `country`. Let's rename it.
+
+```{r}
+big_mac_clean <- big_mac_raw %>%
+  rename(country = name)
+
+cat("Column names after renaming:\n")
+names(big_mac_clean) 
+```
+
+## 2.2. Handling Missing Values (NA)
+
+EDA requires understanding where and why data might be missing.
+
+**Identifying Missing Values:**
+
+Let's visualize the missing data pattern. `visdat::vis_miss()` is great for this.
+
+```{r fig.width=10, fig.height=6}
+# Requires visdat package
+if (!require(visdat)) install.packages("visdat")
+library(visdat)
+
+vis_miss(
+  big_mac_clean,
+  cluster = TRUE,
+  sort_miss = TRUE
+  ) +
+  labs(title = "Missing Value Patterns in Big Mac Data")
+```
+
+**Interpretation:**
+
+* The plot highlights columns with significant missingness.
+* `gdp_dollar` and the adjusted price columns (`adj_price`, `*_adjusted`) are missing for a large portion of the dataset, particularly earlier dates (as seen in `head()`).
+* The raw valuation columns (`*_raw`) also have missing data, likely linked to missing GDP or base currency data.
+* Crucially, `dollar_price` and `dollar_ex` have some missing values, but far fewer than the GDP-related columns. `local_price` has very few.
+* The clustering suggests missingness in GDP/adjusted columns often occurs together.
+
+**Strategy for Handling NA:**
+
+*NOTE!*
+This is an example of handling missing data in a dataset. For this dataset there is no missing data in the `local_price`, `dollar_price` and `dollar_ex` columns, but if there were, we would need to consider how to handle it. Here are some strategies:
+
+* **`local_price`:** This is a fundamental variable. Rows where it's missing offer little value for most analyses. We will remove these rows, but it's important to note how few they are (as seen in `skim()`).
+* **`dollar_price`, `dollar_ex`:** These are important for USD comparisons and PPP analysis. We could remove rows where these are NA, impute them (less ideal for EDA unless carefully justified), or perform analyses that don't rely on them where appropriate. For now, let's keep them and filter *within specific analyses* if needed.
+* **GDP and Adjusted Columns:** Given the high percentage of missing data, especially for earlier years, any analysis using these columns will be restricted to a subset of the data (mostly later years). We should keep these columns but be mindful of this limitation when using them.
+
+```{r}
+# Count NAs before filtering
+na_local_price_before <- sum(is.na(big_mac_clean$local_price))
+
+# Filter rows where local_price is NA
+big_mac_clean <- big_mac_clean %>%
+  filter(!is.na(local_price))
+
+na_local_price_after <- sum(is.na(big_mac_clean$local_price))
+
+cat(paste("Removed", na_local_price_before - na_local_price_after, "rows with missing local_price.\n"))
+
+# Let's also check NAs in dollar_price now
+na_dollar_price <- sum(is.na(big_mac_clean$dollar_price))
+cat(paste("Number of rows with missing dollar_price (after filtering local_price):", na_dollar_price, "\n"))
+# These might be due to missing dollar_ex or issues where dollar_ex is zero.
+# We'll keep these rows for now but filter later if needed for specific plots/calculations.
+```
+
+## 2.3. Data Type Consistency
+
+We already saw that `date` is correctly typed. Other types seem appropriate (`numeric` for prices/rates, `character` for names/codes).
+
+## 2.4. Checking for Duplicates
+
+Are there any fully duplicated rows?
+
+```{r}
+duplicates <- sum(duplicated(big_mac_clean))
+cat(paste("Number of fully duplicated rows:", duplicates, "\n"))
+# If duplicates > 0, we would use distinct(): big_mac_clean <- distinct(big_mac_clean)
+```
+*Self-correction: The check shows 0 duplicates, so no action needed, but the check itself is a standard EDA step.*
+
+## 2.5. Adding Useful Variables
+
+We can add variables that might be useful for analysis, like the year and potentially continent/region if we had that information (we don't directly, but could infer or join). Let's add `year`.
+
+```{r}
+big_mac_clean <- big_mac_clean %>%
+  mutate(year = year(date))
+
+glimpse(big_mac_clean)
+```
+
+# 3. Univariate Analysis (Exploring Single Variables)
+
+Now we explore the characteristics of individual variables.
+
+## 3.1. Numerical Variables
+
+### Distribution of Prices (`local_price`, `dollar_price`)
+
+Let's look at the distributions more closely.
+
+**Local Price:**
+
+```{r fig.width=10}
+p1 <- big_mac_clean %>% 
+  ggplot(aes(x = local_price)) +
+  geom_histogram(bins = 50, fill = "skyblue", color = "black") +
+  scale_x_log10(labels = scales::label_number(accuracy=0.01)) + # Log scale due to wide range
+  labs(title = "Distribution of Local Big Mac Prices (Log Scale)",
+       x = "Local Price (Log10 Scale)", y = "Frequency")
+
+p2 <- big_mac_clean %>% 
+  ggplot(aes(y = local_price)) +
+  geom_boxplot(fill = "skyblue") +
+  scale_y_log10() + # Log scale
+  labs(title = "Boxplot of Local Prices (Log Scale)", y = "Local Price (Log10 Scale)") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) # Hide x-axis text
+
+# Combine plots
+p1 + p2 + plot_layout(widths = c(1, 1))
+```
+
+```{r}
+# Summary stats for dollar price
+summary(big_mac_clean$dollar_price)
+```
+
+**Interpretation:**
+
+* The distribution of `local_price` is heavily right-skewed (many low prices, fewer extremely high prices), as expected due to different currency units and inflation. The log scale helps visualize this better.
+* The boxplot highlights the median, interquartile range (IQR), and potential outliers on the log scale.
+
+**Dollar Price:**
+
+```{r fig.width=10}
+p1_usd <- ggplot(big_mac_clean, aes(x = dollar_price)) +
+  geom_histogram(bins = 50, fill = "lightcoral", color = "black") +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(title = "Distribution of USD Big Mac Prices",
+       x = "Dollar Price", y = "Frequency") +
+  geom_vline(aes(xintercept = median(dollar_price, na.rm=T)), color="blue", linetype="dashed", size=1)
+
+p2_usd <- ggplot(big_mac_clean, aes(y = dollar_price)) +
+  geom_boxplot(fill = "lightcoral", outlier.colour = "red") +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(title = "Boxplot of USD Prices", y = "Dollar Price") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+# Combine plots
+p1_usd + p2_usd + plot_layout(widths = c(1, 1))
+```
+
+```{r}
+# Summary stats for dollar price
+summary(big_mac_clean$dollar_price)
+```
+
+**Interpretation:**
+
+* The distribution of `dollar_price` is more symmetric than `local_price`, though still slightly right-skewed.
+* The median price is around `$r round(median(big_mac_clean$dollar_price, na.rm=T), 2)`, with most prices falling roughly between $1 and $6.
+* The boxplot clearly shows several potential outliers on both the low and high ends. Very low prices (close to $0) might indicate data errors or extreme currency situations. Very high prices (e.g., above $7) occur in expensive countries like Switzerland or Norway.
+
+**Outlier Investigation (Example):**
+
+Let's look at the lowest and highest `dollar_price` entries.
+
+```{r}
+big_mac_clean %>%
+  filter(!is.na(dollar_price)) %>%
+  arrange(dollar_price) %>%
+  select(date, country, local_price, dollar_ex, dollar_price) %>%
+  head() 
+```
+
+```{r}
+big_mac_clean %>%
+  filter(!is.na(dollar_price)) %>%
+  arrange(desc(dollar_price)) %>%
+  select(date, country, local_price, dollar_ex, dollar_price) %>%
+  head()
+```
+*Observation:* Extremely low prices often occurred during periods of hyperinflation or currency crisis (e.g., Argentina 2002, Russia 2015/16, Ukraine). High prices are consistently seen in Switzerland, Norway, Sweden. This context helps understand if outliers are errors or reflect real economic conditions.
+
+
+
+## 3.2. Categorical Variables
+
+### Country Coverage
+
+How many data points (observations over time) do we have per country?
+
+```{r}
+# Calculate counts and identify top N countries for better visualization
+country_counts <- big_mac_clean %>%
+  count(country, sort = TRUE, name = "observation_count")
+
+country_counts
+```
+
+```{r}
+top_n <- 30 # Show top N countries for clarity
+
+country_counts %>%
+  slice_max(observation_count, n = top_n) %>% 
+  ggplot(aes(x = observation_count, y = reorder(country, observation_count))) +
+  geom_col(fill = "steelblue") +
+  labs(
+    title = paste("Number of Observations per Country (Top", top_n, ")"),
+    x = "Number of Observations",
+    y = "Country"
+    ) +
+  theme(axis.text.y = element_text(size=8)) # Adjust text size if needed
+```
+
+**Interpretation:**
+
+* Some countries have many data points (likely included since the index started), while others have very few (added later or data gaps).
+* This uneven coverage is important. Comparisons across countries with vastly different numbers of observations should be made cautiously. The previous notebook filtered analysis based on `country_total == country_max`, which is a valid approach but limits the scope significantly. We should acknowledge this limitation.
+
+# 4. Bivariate Analysis (Exploring Relationships)
+
+Let's explore relationships between pairs of variables.
+
+## 4.1. Numerical vs. Numerical
+
+### Dollar Price vs. GDP per Capita
+
+Is there a relationship between the price of a Big Mac (in USD) and the wealth of a country (GDP per capita in USD)? Note the missing GDP data limits this analysis.
+
+```{r}
+# Filter out missing GDP and very early data for potentially better comparison
+gdp_analysis_data <- big_mac_clean %>%
+  filter(
+    !is.na(gdp_dollar),
+    !is.na(dollar_price),
+    year >= 2010
+    ) # Example filter
+
+```
+```{r}
+gdp_analysis_data %>% 
+  ggplot(aes(x = gdp_dollar, y = dollar_price)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") + # Add linear trend line
+  scale_x_log10(labels = scales::dollar_format()) + # Log scale for GDP often helps
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Big Mac Price (USD) vs. GDP per Capita (USD)",
+    subtitle = "Data from 2010 onwards, Log scale for GDP",
+    x = "GDP per Capita (Log10 Scale)", y = "Big Mac Price (USD)"
+    )
+gdp_analysis_data
+```
+
+```{r}
+# Calculate correlation (using filtered data)
+correlation_gdp_price <- cor(gdp_analysis_data$gdp_dollar, gdp_analysis_data$dollar_price, use = "complete.obs")
+cat(paste("\nCorrelation between GDP per Capita and Dollar Price (>=2010):", round(correlation_gdp_price, 3), "\n"))
+
+```
+
+**Interpretation:**
+
+* There appears to be a positive relationship: richer countries (higher GDP per capita) tend to have higher Big Mac prices in USD. This is expected ("Penn effect" or Balassa-Samuelson effect - richer countries often have higher prices for non-tradable goods and services, including labor).
+* The correlation coefficient confirms a moderate positive linear association in this subset of data.
+* The scatter plot also shows considerable variation around the trend line.
+
+## 4.2. Numerical vs. Categorical
+
+### Dollar Price Distribution by Country (Selected)
+
+Let's compare the distribution of `dollar_price` across a few key countries using boxplots.
+
+```{r}
+# Select a diverse set of countries for comparison
+selected_countries <- c("United States", "Switzerland", "China", "Brazil", "India", "Euro area", "Britain", "Japan", "South Africa", "Argentina")
+
+# Filter data for selected countries
+boxplot_data <- big_mac_clean %>%
+  filter(country %in% selected_countries)
+
+boxplot_data %>% 
+  ggplot(aes(x = dollar_price, y = reorder(country, dollar_price, median, na.rm = TRUE))) +
+  geom_boxplot(fill = "lightblue", outlier.colour = "red", outlier.size = 1.5) +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Distribution of Big Mac Prices (USD) by Selected Country",
+    x = "Big Mac Price (USD)", y = "Country"
+    )
+```
+
+**Interpretation:**
+
+* The plot clearly shows differences in both the median price level and the variability (length of the box/whiskers) across countries.
+* Switzerland consistently has the highest median price and range.
+* Countries like India, South Africa, and historically China show lower median prices.
+* Argentina shows a very wide range, reflecting periods of high inflation and currency volatility impacting the `dollar_price`.
+
+## 4.3. Time Series Exploration
+
+### Price Trends Over Time
+
+How have prices changed over the years? Let's plot `dollar_price` over time for the selected countries.
+
+```{r fig.height=8}
+# Plot dollar_price over time, faceted by country
+
+boxplot_data %>% 
+  ggplot(aes(x = date, y = dollar_price)) +
+  geom_line(aes(color = country), size = 1) +
+  geom_smooth(
+    se = FALSE,
+    color = "black",
+    linetype = "dashed",
+    size = 0.5
+    ) + # Optional trend line
+  facet_wrap(
+    ~ country,
+    scales = "free_y",
+    ncol = 2
+    ) + # Free y-axis scale per country
+  scale_y_continuous(labels = scales::dollar_format()) +
+  scale_x_date(
+    date_breaks = "4 years",
+    date_labels = "%Y"
+    ) +
+  labs(
+    title = "Big Mac Price (USD) Trends Over Time (Selected Countries)",
+    x = "Date", y = "Big Mac Price (USD)"
+    ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+    ) # Hide legend as facets show country
+```
+
+**Interpretation:**
+
+* **USA:** Relatively stable price increase over time.
+* **Switzerland:** Consistently high price, generally increasing.
+* **Euro Area / Britain / Japan:** Varying trends, sometimes showing periods of decrease in USD terms (could be due to currency fluctuations relative to USD).
+* **Brazil / Argentina / South Africa:** Much more volatile paths, reflecting economic instability and currency fluctuations. Argentina shows dramatic swings.
+* **China / India:** Generally lower prices, but showing an upward trend over time.
+
+# 5. Deeper Analysis: PPP and Currency Valuation
+
+The core idea of the Big Mac Index is to assess currency valuation based on PPP.
+
+## 5.1. Calculating and Visualizing Deviations
+
+The dataset provides `usd_raw`, which represents the percentage deviation of a country's implied PPP exchange rate from the actual market exchange rate. A positive value means the currency is overvalued against the USD according to the Big Mac standard, and negative means undervalued.
+
+Let's visualize this deviation for our selected countries.
+
+```{r fig.height=8}
+# Use the usd_raw column directly, filter NA
+deviation_data <- big_mac_clean %>%
+  filter(
+    country %in% selected_countries,
+    !is.na(usd_raw)
+    )
+
+deviation_data %>% 
+  ggplot(aes(x = date, y = usd_raw)) +
+  geom_line(aes(color = country), size = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + # Line for perfect PPP
+  facet_wrap(~ country, scales = "free_y", ncol = 2) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+  labs(
+    title = "Currency Valuation Deviation vs USD (Big Mac Index)",
+    subtitle = "Positive = Overvalued, Negative = Undervalued",
+    x = "Date",
+    y = "% Deviation from Market Exchange Rate"
+    ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+
+```
+
+**Interpretation:**
+
+* **Switzerland:** Consistently shows significant overvaluation (positive deviation).
+* **USA:** By definition (`usd_raw`), the deviation should be near 0 (it uses itself as the base). Small deviations might appear due to how `usd_raw` was calculated in the source data, potentially using a slightly different US price base sometimes.
+* **Euro Area / Britain / Japan / Brazil:** Fluctuate around parity (0), sometimes overvalued, sometimes undervalued relative to USD.
+* **China / India / South Africa, Argentina:** Consistently show significant undervaluation according to the index.
+
+## 5.2. Latest Valuation Snapshot
+
+What did the valuation picture look like at the most recent date in the dataset?
+
+```{r fig.height=8}
+# Find the latest date with non-NA usd_raw data
+latest_date_data <- big_mac_clean %>%
+  filter(!is.na(usd_raw)) %>%
+  filter(date == max(date))
+
+latest_date_data %>% 
+  ggplot(aes(x = usd_raw, y = reorder(country, usd_raw))) +
+  geom_col(aes(fill = usd_raw > 0)) + # Color by over/undervaluation
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_x_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("FALSE" = "firebrick", "TRUE" = "steelblue"), guide = "none") +
+  labs(
+    title = paste("Currency Valuation vs USD on", max(latest_date_data$date)),
+    subtitle = "Based on Big Mac Index (usd_raw)",
+    x = "% Deviation (Positive = Overvalued)",
+    y = "Country"
+    ) +
+  theme(axis.text.y = element_text(size=8))
+```
+
+**Interpretation:** This plot provides a clear snapshot of which currencies were most over/undervalued against the dollar according to the index at that specific point in time.
+
+## 5.3. GDP-Adjusted Index
+
+The raw index doesn't account for the fact that prices (especially labor costs) are naturally lower in poorer countries. The GDP-adjusted index attempts to correct for this. Let's look at the `usd_adjusted` column (again, noting the missing data).
+
+```{r}
+# Filter for latest date with available adjusted data
+latest_date_adj_data <- big_mac_clean %>%
+  filter(!is.na(usd_adjusted)) %>%
+  filter(date == max(date))
+
+latest_date_adj_data %>% 
+  ggplot(aes(x = usd_adjusted, y = reorder(country, usd_adjusted))) +
+  geom_col(aes(fill = usd_adjusted > 0)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_x_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("FALSE" = "firebrick", "TRUE" = "steelblue"), guide = "none") +
+  labs(
+    title = paste("GDP-Adjusted Currency Valuation vs USD on", max(latest_date_adj_data$date)),
+    subtitle = "Based on Big Mac Index (usd_adjusted)",
+    x = "% Deviation (Positive = Overvalued)",
+    y = "Country"
+    ) +
+  theme(axis.text.y = element_text(size=8))
+```
+
+**Interpretation:**
+
+* Compare this plot to the previous one (`p_latest_dev`).
+* Many emerging market currencies that appeared undervalued on the raw index now seem less undervalued or even fairly valued/overvalued after adjusting for GDP.
+* Conversely, some richer countries might appear less overvalued.
+* This highlights that the *interpretation* of the index changes significantly when accounting for income levels.
+
+# 6. Summary and Key Findings
+
+This Exploratory Data Analysis of the Big Mac Index dataset revealed several key insights:
+
+1.  **Data Quality & Coverage:** The dataset is relatively clean for core price/exchange rate variables, but GDP-related and adjusted columns have significant missing data, particularly for earlier years. Data coverage varies significantly by country.
+2.  **Price Distributions:** `local_price` is heavily skewed due to different currency units and inflation. `dollar_price` provides a better comparison basis, showing a median price around `$r round(median(big_mac_clean$dollar_price, na.rm=T), 2)` but with significant variation and outliers linked to country wealth and economic conditions.
+3.  **Price Trends:** Prices (in USD) generally tend to be higher in wealthier nations and show an upward trend over time in many stable economies. Countries experiencing economic instability show much greater volatility.
+4.  **Inflation:** The index can illustrate relative inflation differences, though a robust analysis would require more sophisticated methods. Countries like Argentina clearly stand out.
+5.  **Currency Valuation (Raw):** The raw Big Mac index consistently suggests significant undervaluation for many emerging market currencies and overvaluation for countries like Switzerland and Norway.
+6.  **Currency Valuation (GDP-Adjusted):** Adjusting for GDP per capita significantly alters the valuation picture, making many emerging market currencies appear closer to fair value or even overvalued. This suggests the raw index should be interpreted cautiously without considering income differences.
+7.  **Relationships:** A positive correlation exists between `dollar_price` and `gdp_dollar`, supporting the idea that prices are generally higher in richer countries.
+
+**Limitations:**
+
+* The Big Mac is just one item and may not represent a full consumption basket.
+* Non-tradable costs (rent, labor) heavily influence its price.
+* Missing data limits analysis, especially historical GDP-adjusted comparisons.
+* Market exchange rates can deviate from PPP for many reasons beyond just price levels (e.g., capital flows, trade barriers, interest rates).
+
+**Overall:** EDA provided a valuable understanding of the dataset's structure, quality, and the key economic patterns reflected in the Big Mac Index. It highlighted the importance of context (like economic conditions) when interpreting outliers and trends, and demonstrated how adjusting for factors like GDP can change conclusions.
+

@@ -1,0 +1,19 @@
+---
+title: "Exploratory Data Analysis (EDA): Netflix dataset Case Study"
+date: "2025-05-06"
+---
+
+
+
+
+Conduct a comprehensive exploratory data analysis (EDA) on the Netflix dataset. The dataset contains information about Netflix titles, including their release year, type (movie or TV show), duration, and genre. 
+
+
+
+
+```{r}
+netflix <- read_csv("netflix_titles.csv")
+```
+
+
+

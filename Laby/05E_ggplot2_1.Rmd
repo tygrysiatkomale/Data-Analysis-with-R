@@ -392,7 +392,10 @@ ggsave(filename = "scatter_plot.png", plot = scatter_plot, width = 8, height = 6
 **Question:** Using the `penguins` dataset, create a scatterplot of bill length (`bill_length_mm`) vs. bill depth (`bill_depth_mm`). Color the points by species.
 
 ```{r}
-
+plot <- penguins %>% 
+  ggplot(aes(x=bill_length_mm, y=bill_depth_mm)) +
+  geom_point(aes(color = species))
+plot
 
 ```
 
