@@ -1,0 +1,511 @@
+---
+title: 'Tidymodels Workshop: Predicting Netflix Content Type'
+author: 'Piotr Kosowski'
+date: "2025-05-13"
+
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = 'center')
+```
+
+
+## Introduction 
+
+ Today, you will build a classification model to predict the type of content on Netflix (Movie or TV Show) based on other features in the dataset. We will use the tidymodels ecosystem, following a structured approach to machine learning.
+
+**Goal:**
+
+- Understand and apply the tidymodels workflow.
+- Perform data splitting, preprocessing, model specification, training, and evaluation.
+- Optionally, explore hyperparameter tuning.
+
+
+
+## 1. Setting Up the Environment
+
+First, we need to load the necessary R packages. tidymodels is the core package, and tidyverse provides useful tools for data manipulation and visualization (many of its components like dplyr and ggplot2 are loaded by tidymodels, but loading tidyverse explicitly can be helpful for other functions like read_csv).
+
+```{r}
+# Task: Load the required libraries.
+# Hint: You'll definitely need 'tidymodels' and 'tidyverse' (or at least 'readr' for read_csv).
+# install.packages(c("tidymodels", "tidyverse")) # Run this if you haven't installed them
+
+
+
+```
+
+
+Now, let's load the dataset. The data is in a file named netflix_titles.csv.
+
+```{r}
+# Task: Load the netflix_titles.csv dataset into a tibble called 'netflix_raw'.
+# Hint: Use read_csv() from the readr package (part of tidyverse).
+
+```
+
+
+## 2. Data Exploration and Initial Preparation
+Before building any model, it's crucial to understand your data.
+
+**Task 1: Initial Data Inspection**
+
+Look at the structure of the data, its dimensions, and variable types.
+Get a summary of each variable.
+Check for missing values.
+
+```{r}
+# Task: Explore the 'netflix_raw' tibble.
+# Hints:
+# glimpse(netflix_raw)
+# summary(netflix_raw)
+# print(paste("Number of rows:", nrow(netflix_raw)))
+# print(paste("Number of columns:", ncol(netflix_raw)))
+# colSums(is.na(netflix_raw)) # To see missing values per column
+
+```
+
+
+**Discussion Points & Decisions:**
+
+- **Target Variable**: Our goal is to predict type. Is it suitable for classification? What are its levels? Is it balanced?
+- **Predictor Variables:** Which columns could be useful for predicting type?
+
+
+Consider release_year, rating, duration, listed_in, country.
+
+Some columns like show_id, title, director, cast, description, date_added might need careful handling or might be excluded for a first simple model. description and title are text that would require NLP techniques. director and cast have many unique values and sometimes multiple entries.
+
+Missing Values (NAs): How will you handle them? For this exercise, we can start by:
+
+Selecting only the columns we intend to use (target + chosen predictors).
+
+Removing rows that have NAs in these selected columns. Later, you could explore imputation techniques within a recipe.
+
+**Task 2: Data Cleaning and Feature Selection**
+
+For this exercise, let's try to predict type using:
+
+- **release_year (numeric)**
+- **rating (categorical)** - This might have many levels or NAs.
+- **listed_in (categorical, contains genre information)** - This often has multiple entries. For a start, you could try to extract the first genre listed.
+
+
+Let's prepare a dataset netflix_clean with the target type and your chosen predictors.
+Ensure type is a factor. Handle missing values in the selected columns by removing rows with NAs for simplicity in this first pass.
+
+```{r}
+# Task: Create 'netflix_clean'.
+# 1. Select the target variable 'type' and your chosen predictors (e.g., release_year, rating, listed_in).
+# 2. Convert 'type' to a factor.
+# 3. For 'listed_in', you might want to simplify it.
+#    Hint: You can split the string by ',' and take the first element:
+#    stringr::str_split_fixed(listed_in, ", ", n = 2)[,1]
+#    Or, use separate_wider_delim() from tidyr.
+# 4. Remove rows with NA values in ANY of your selected columns.
+#    Hint: use drop_na() from tidyr on the selected columns.
+
+```
+
+
+```{r}
+# After cleaning, inspect 'netflix_clean' again:
+# glimpse(netflix_clean)
+# summary(netflix_clean)
+# colSums(is.na(netflix_clean))
+# table(netflix_clean$type) # Check target variable distribution
+
+```
+
+
+**Task 3: Set a Random Seed**
+This ensures your results are reproducible.
+
+```{r}
+# Task: Set a random seed. Pick any number you like.
+# Hint: set.seed(...)
+
+```
+
+
+## 3. Data Splitting (rsample)
+
+Now, we split our cleaned data into a training set (to build the model) and a testing set (to evaluate its final performance on unseen data).
+
+**Task 1: Initial Split**
+
+Split netflix_clean into netflix_train and netflix_test.
+Aim for roughly 75% for training and 25% for testing.
+Use stratified sampling on the type variable to ensure similar proportions of "Movie" and "TV Show" in both sets.
+
+```{r}
+# Task: Perform the initial split of 'netflix_clean'.
+# Hint: Use initial_split() from rsample. Specify 'prop' and 'strata'.
+
+```
+
+
+```{r}
+# Task: Extract the training and testing sets.
+# Hint: Use training() and testing() functions.
+
+```
+
+```{r}
+# Task: Print the number of observations in training and testing sets.
+# Hint: nrow(netflix_train), nrow(netflix_test)
+
+```
+
+
+**Task 2: Create Cross-Validation Folds**
+
+We'll use V-fold cross-validation on the training data to evaluate model performance during hyperparameter tuning or to get a more robust estimate of performance without tuning.
+
+```{r}
+# Task: Create 10-fold cross-validation folds from 'netflix_train'.
+# Hint: Use vfold_cv(). Use strata = type as well.
+
+```
+
+
+## 4. Preprocessing (recipes)
+
+We will define a recipe to specify preprocessing steps that will be applied to the data. These steps are estimated on the training data and then applied to both training and testing data (and to cross-validation folds).
+
+**Task: Define your recipe**
+
+Start with `recipe(type ~ ., data = netflix_train)`. This means type is the outcome, and all other columns in netflix_train are potential predictors.
+
+Add steps for your chosen predictors:
+
+For categorical predictors like rating and listed_in:
+- Consider `step_other()` if they have many levels to group infrequent ones.
+- Consider `step_unknown()` to handle factor levels not seen during training (if any).
+- Use `step_dummy()` to convert them into numeric dummy variables.
+
+For numeric predictors like release_year:
+- Use `step_normalize()` (or `step_range` etc.) if your chosen model is sensitive to feature scaling (e.g., KNN, SVM, neural networks, regularized regression). For tree-based models like Random Forest or Decision Trees, normalization is often not strictly necessary but doesn't hurt.
+- You might also add `step_zv()` to remove any zero-variance predictors.
+- `step_novel()` can be useful before `step_dummy()` if new factor levels might appear in new data or CV folds.
+
+```{r}
+# Task: Define 'netflix_recipe'.
+
+```
+
+
+
+```{r}
+# Task: Check your recipe by prepping it and baking on a small piece of data.
+# This helps you see what the recipe does.
+# prep_recipe <- prep(netflix_recipe, training = netflix_train)
+# bake(prep_recipe, new_data = head(netflix_train))
+# summary(netflix_recipe)
+
+```
+
+
+## 5. Model Specification (parsnip)
+
+Now, define the type of model you want to use. parsnip provides a unified interface.
+Let's start with a Logistic Regression model, which is a good baseline for binary classification.
+Alternatively, you could try `decision_tree()` or `rand_forest()`.
+
+**Task: Specify your model**
+
+
+- Choose a model (e.g., `logistic_reg()`).
+- Set its engine (e.g., "glm" for logistic regression).
+- Set its mode (which is "classification" for this problem).
+
+
+```{r}
+# Task: Define your model specification (e.g., 'log_reg_spec').
+# Hint: For logistic regression: logistic_reg() %>% set_engine("glm") %>% set_mode("classification")
+```
+
+```{r}
+# Alternative: Decision Tree
+# tree_spec <- decision_tree() %>%
+#   set_engine("rpart") %>%
+#   set_mode("classification")
+
+```
+
+```{r}
+# Alternative: Random Forest
+# rf_spec <- rand_forest(trees = 500) %>% # You can set some defaults here
+#   set_engine("ranger") %>%
+#   set_mode("classification")
+
+```
+
+
+## 6. Bundling into a Workflow (workflows)
+
+A workflow bundles your recipe and model specification. This makes it easier to manage the modeling process.
+
+**Task: Create your workflow**
+
+- Start with `workflow()`.
+- Add your netflix_recipe.
+- Add your model specification (e.g., log_reg_spec).
+
+
+```{r}
+# Task: Create 'netflix_wf'.
+# Hint: workflow() %>% add_recipe(...) %>% add_model(...)
+```
+
+
+## 7. Training the Model (workflows)
+Now, fit your workflow to the training data (netflix_train). The workflow will automatically apply the recipe steps before training the model.
+
+```{r}
+# Task: Fit 'netflix_wf' to 'netflix_train'. Store the result in 'netflix_fit'.
+# Hint: fit(your_workflow, data = netflix_train)
+
+```
+
+
+**Task: Print the fitted model object to see some details.**
+```{r}
+# Task: Print 'netflix_fit'.
+```
+
+
+## 8. Evaluating the Model (yardstick)
+
+Let's see how well our model performs on the unseen netflix_test data.
+
+**Task 1: Make Predictions**
+
+Use your `netflix_fit` object to predict on `netflix_test`.
+
+Generate both predicted classes (type = "class") and predicted probabilities (type = "prob").
+
+```{r}
+# Task: Generate class predictions.
+
+
+# Task: Generate probability predictions.
+
+```
+
+
+```{r}
+# Task: Combine predictions with the true 'type' from 'netflix_test'.
+# Create a tibble 'results_df' that includes:
+# .pred_class (from class predictions)
+# .pred_Movie, .pred_TV_Show (from probability predictions - names depend on your factor levels)
+# type (the true values from netflix_test)
+# Hint: bind_cols(class_preds, prob_preds, netflix_test %>% select(type))
+```
+
+
+
+**Task 2: Define Metrics**
+
+Choose appropriate metrics for classification, `accuracy` and `roc_auc` are common. You might also look at `precision`, `recall`, or `f_meas`.
+
+```{r}
+# Task: Create a metric set using metric_set().
+# Hint: classification_metrics <- metric_set(accuracy, roc_auc, precision, recall)
+
+```
+
+
+
+**Task 3: Calculate Metrics**
+
+Use your `results_df` and `classification_metrics` to calculate performance.
+
+```{r}
+# Task: Calculate and print the metrics.
+# Hint: classification_metrics(results_df, truth = type, estimate = .pred_class, ...)
+# For roc_auc, you need to provide the probability column for the positive class.
+
+# If 'Movie' is your positive class (first factor level), use .pred_Movie.
+# You might need to specify event_level = "second" in roc_auc if TV Show is the event of interest and it's the second level.
+
+# Or provide all probability columns and specify estimator = "macro" or "micro" for some metrics.
+# Check levels(results_df$type) to know the order.
+
+# Example assuming 'Movie' is the first level:
+# classification_metrics(results_df, truth = type, estimate = .pred_class, .pred_Movie, event_level = "first")
+
+# Or for multi-class like roc_auc:
+# classification_metrics(results_df, truth = type, estimate = .pred_class, .pred_Movie, .pred_`TV Show`, estimator="macro")
+
+# Adapt .pred_`TV Show` based on the actual column name for TV Show probability.
+
+```
+
+
+
+**Task 4: Confusion Matrix**
+
+A confusion matrix gives more detail about how the classes are being predicted.
+
+```{r}
+# Task: Calculate and plot a confusion matrix.
+# Hint: Use conf_mat() and then autoplot() on the result.
+# conf_mat(results_df, truth = type, estimate = .pred_class) %>% autoplot(type = "heatmap")
+
+```
+
+
+## Discussion:
+
+- How did your model perform?
+- Which metric is most important for this problem? Why?
+- What does the confusion matrix tell you?
+
+## 9. (Optional) Hyperparameter Tuning (tune)
+
+Many models have hyperparameters that can be optimized to improve performance. For logistic regression, penalty (L1/L2 regularization) and mixture (for elastic net) are common. For Random Forest, mtry, trees, and min_n are common.
+
+Let's outline how you would tune a Random Forest model for mtry (number of predictors to sample at each split) and min_n (minimum node size).
+
+**Task 1: Update Model Specification for Tuning**
+
+Modify your chosen model spec (e.g., if you used rand_forest) to mark hyperparameters for tuning using tune().
+
+
+```{r}
+# Task: Create a new model specification for tuning (e.g., 'rf_spec_tune').
+# This example uses Random Forest. Adapt if you chose a different model.
+# rf_spec_tune <- rand_forest(
+#     mtry = tune(),
+#     min_n = tune(),
+#     trees = 500 # Keep trees fixed or tune it too (takes longer)
+#   ) %>%
+#   set_engine("ranger", importance = "permutation") %>% # ranger is fast; importance can be useful
+#   set_mode("classification")
+
+```
+
+
+
+```{r}
+# Task: Update your workflow to use this tunable model spec.
+# netflix_wf_tune <- netflix_wf %>%
+#   update_model(rf_spec_tune)
+
+```
+
+**Task 2: Define a Hyperparameter Grid**
+
+Use dials package functions (like `mtry()`, `min_n()`) and `grid_regular()` or `grid_random()` to create a set of hyperparameter values to try.
+
+```{r}
+# Task: Define a hyperparameter grid 'rf_grid'.
+# Hint: Get parameter ranges first:
+# mtry_param <- mtry(range = c(1, ncol(netflix_train) - 1)) # Max mtry is number of predictors
+# min_n_param <- min_n(range = c(2, 20))
+#
+# rf_grid <- grid_regular(
+#   mtry_param,
+#   min_n_param,
+#   levels = 3 # Try 3 levels for each, so 3x3 = 9 combinations. Increase for more thorough search.
+# )
+# print(rf_grid)
+```
+
+
+**Task 3: Perform Tuning**
+
+Use `tune_grid()` with your tunable workflow, cross-validation folds (netflix_folds), the grid, and metrics.
+
+```{r}
+# Task: Run tune_grid(). This might take some time.
+# Hint: control = control_grid(save_pred = TRUE, verbose = TRUE) can be useful
+# tune_results <- tune_grid(
+#   netflix_wf_tune,
+#   resamples = netflix_folds,
+#   grid = rf_grid,
+#   metrics = metric_set(accuracy, roc_auc) # Or your defined classification_metrics
+# )
+# print(tune_results)
+
+```
+
+**Task 4: Analyze Tuning Results**
+
+Show the best performing hyperparameter combinations.
+Visualize the results.
+
+```{r}
+# Task: Show the best results and plot them.
+# show_best(tune_results, metric = "roc_auc")
+# autoplot(tune_results)
+```
+
+
+**Task 5: Finalize Workflow and Fit Final Model**
+
+- Select the best hyperparameter combination.
+- Finalize your tunable workflow with these best parameters.
+- Fit this final workflow on the entire training set (netflix_train).
+- Evaluate this final model on the test set (netflix_test) as you did in Step 8.
+
+```{r}
+# Task: Select best hyperparameters.
+# best_params <- select_best(tune_results, metric = "roc_auc")
+# print(best_params)
+```
+
+
+```{r}
+# Task: Finalize the workflow.
+# final_netflix_wf <- finalize_workflow(netflix_wf_tune, best_params)
+# print(final_netflix_wf)
+
+```
+
+
+```{r}
+# Task: Fit the final model on the full training data.
+# final_netflix_fit <- fit(final_netflix_wf, data = netflix_train)
+# print(final_netflix_fit)
+
+```
+
+
+```{r}
+# Task: Evaluate this 'final_netflix_fit' on 'netflix_test'.
+# You'll make predictions, combine with truth, and calculate metrics.
+
+```
+
+
+## 10. (Optional) Saving Your Model
+
+Once you have a model you're happy with (either the one from initial training or the tuned one), you can save it for later use.
+
+```{r}
+# Task: Save your best fitted workflow (e.g., 'netflix_fit' or 'final_netflix_fit').
+# Hint: saveRDS(your_fitted_model_object, file = "my_netflix_model.rds")
+
+```
+
+
+```{r}
+# Task: You can also try loading it back to ensure it works.
+# loaded_model <- readRDS("my_netflix_model.rds")
+# print(loaded_model)
+# And then make predictions with 'loaded_model'.
+
+```
+
+
+
+## Conclusion and Next Steps
+
+**Reflect on your modeling process:**
+
+- What were the main challenges?
+- How did your chosen predictors and preprocessing steps affect the results?
+- If you did tuning, how much did it improve performance?
+- What could you try next to potentially improve the model? (e.g., different model types, more advanced feature engineering for duration or listed_in, different ways of handling NAs, feature selection techniques).
