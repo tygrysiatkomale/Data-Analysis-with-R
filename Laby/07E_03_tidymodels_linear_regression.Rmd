@@ -1,0 +1,677 @@
+---
+title: "Comprehensive Guide to Linear Regression with Tidymodels"
+author: "Piotr Kosowski"
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = 'center')
+```
+
+# Introduction to Linear Regression
+
+Linear regression is one of the most fundamental and widely used predictive modeling techniques. It's a statistical method to model the relationship between a dependent (or response) variable and one or more independent (or predictor) variables by fitting a linear equation to observed data.
+
+## What is Linear Regression?
+
+At its core, linear regression attempts to find the "best-fitting" straight line (or hyperplane in higher dimensions) through a set of data points.
+
+-   **Simple Linear Regression (SLR):** Involves a single independent variable ($X$) to predict a continuous dependent variable ($Y$). The relationship is modeled as: $$Y = \beta_0 + \beta_1 X + \epsilon$$ Where:
+
+    -   $Y$ is the dependent variable.
+    -   $X$ is the independent variable.
+    -   $\beta_0$ is the y-intercept of the regression line (the value of $Y$ when $X=0$).
+    -   $\beta_1$ is the slope of the regression line (the change in $Y$ for a one-unit change in $X$).
+    -   $\epsilon$ (epsilon) is the error term, representing the random variation or the effect of unobserved factors.
+
+-   **Multiple Linear Regression (MLR):** Involves two or more independent variables ($X_1, X_2, \dots, X_p$) to predict a continuous dependent variable ($Y$). The relationship is modeled as: $$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p + \epsilon$$ Where:
+
+    -   $\beta_0$ is the y-intercept.
+    -   $\beta_1, \beta_2, \dots, \beta_p$ are the coefficients for each independent variable, representing the change in $Y$ for a one-unit change in that specific $X_j$, holding all other predictors constant.
+    -   $\epsilon$ is the error term.
+
+The goal of linear regression is to estimate the unknown parameters ($\beta_0, \beta_1, \dots, \beta_p$) that minimize the sum of the squared differences between the observed values of $Y$ and the values predicted by the linear equation. This method is known as Ordinary Least Squares (OLS).
+
+## Key Assumptions of Linear Regression
+
+For the results of a linear regression model to be valid and interpretable, several assumptions about the data and the model should ideally be met:
+
+1.  **Linearity:** The relationship between the independent variables and the mean of the dependent variable is linear.
+2.  **Independence of Errors:** The errors (residuals, $Y_i - \hat{Y}_i$) are independent of each other. This is particularly important for time series data where errors might be correlated over time.
+3.  **Homoscedasticity (Constant Variance):** The errors have constant variance across all levels of the independent variables. This means the spread of residuals should be roughly the same for all predicted values.
+4.  **Normality of Errors:** The errors are normally distributed with a mean of zero. While OLS estimates are still unbiased if errors are not normal, normality is important for hypothesis testing and confidence interval construction, especially with small sample sizes.
+5.  **No Perfect Multicollinearity:** The independent variables are not perfectly correlated with each other. High multicollinearity (where predictors are highly correlated) can make it difficult to estimate individual coefficients precisely.
+6.  **No Endogeneity:** Predictors are not correlated with the error term. This means there are no omitted variables that are correlated with both the predictors and the outcome.
+
+We will explore how to check some of these assumptions using diagnostic plots later.
+
+## Further Reading
+
+For a deeper understanding of linear regression, you can explore these resources:
+
+-   [Wikipedia: Linear Regression](https://en.wikipedia.org/wiki/Linear_regression)
+-   [StatQuest: Linear Models Pt.1 - Linear Regression](https://www.youtube.com/watch?v=7ArmBVF2dCs) (Video)
+-   [PennState STAT 501: Regression Methods](https://online.stat.psu.edu/stat501/) (Online Course Notes)
+-   Chapter 3 of "An Introduction to Statistical Learning" by James, Witten, Hastie, and Tibshirani (Book, available online)
+
+This notebook will guide you through performing linear regression using the `tidymodels` framework in R, which provides a modern and consistent interface for modeling.
+
+------------------------------------------------------------------------
+
+# Setting Up the Environment
+
+We'll start by loading the necessary R packages. `tidymodels` is our primary toolkit, `tidyverse` helps with data manipulation and visualization, and `vip` will be used for variable importance plots.
+
+```{r}
+libs <- c("tidyverse", "tidymodels", "vip") # vip for variable importance
+
+installed_libs <- libs %in% rownames(installed.packages())
+
+if (any(installed_libs == FALSE)) {
+  install.packages(libs[!installed_libs])
+}
+
+# Load libraries
+library(tidyverse)
+library(tidymodels)
+library(vip)
+
+```
+
+The `vip` package is used for exploring predictor variable importance. We will use this package for visualizing which predictors have the most predictive power in our linear regression models.
+
+------------------------------------------------------------------------
+
+# Loading Datasets
+
+We will be working with two datasets:
+
+1.  `advertising.rds`: Contains sales revenue and advertising budgets for TV, Radio, and Newspaper for a set of stores.
+2.  `home_sales.rds`: Contains information on real estate home sales in the Seattle area between 2014 and 2015.
+
+<!-- end list -->
+
+```{r}
+# Load the datasets
+advertising <- read_rds('advertising.rds')
+home_sales <- read_rds('home_sales.rds') %>%
+              select(-selling_date) # selling_date is removed for this analysis
+```
+
+Let's take a quick look at their structure and some initial rows.
+
+```{r}
+glimpse(advertising)
+head(advertising)
+```
+
+
+```{r}
+glimpse(home_sales)
+head(home_sales)
+```
+
+------------------------------------------------------------------------
+
+# Linear Regression Step-by-Step (Advertising Data, simple example without workflow)
+
+We'll start by building a linear regression model for the `advertising` dataset to predict `Sales` based on advertising spending on `TV`, `Radio`, and `Newspaper`.
+
+## 1. Data Splitting (`rsample`)
+
+The first crucial step in any modeling process is to split the data into a training set and a testing set.
+
+-   **Training Set:** Used to build and train the model.
+-   **Testing Set:** Held back and used to evaluate the model's performance on unseen data, giving an unbiased estimate of its generalization ability.
+
+We'll use `initial_split()` from the `rsample` package (part of `tidymodels`). We'll aim for a 75% training / 25% testing split and use stratified sampling on `Sales` to ensure that the distribution of sales values is similar in both sets (though for continuous outcomes, stratification breaks the outcome into quantiles).
+
+```{r}
+set.seed(314) # For reproducibility
+
+# Create a split object
+advertising_split <- initial_split(
+  advertising,
+  prop = 0.75,    # Proportion of data to allocate to training
+  strata = Sales  # Stratify by the outcome variable
+)
+
+# Extract training and testing sets
+advertising_training <- training(advertising_split)
+advertising_test <- testing(advertising_split)
+
+cat("Training set dimensions:", dim(advertising_training), "\n")
+cat("Testing set dimensions:", dim(advertising_test), "\n")
+```
+
+## 2. Model Specification (`parsnip`)
+
+Next, we define the *type* of model we want to build. The `parsnip` package provides a consistent interface for this.
+
+-   `linear_reg()`: Specifies a linear regression model.
+-   `set_engine()`: Specifies the R package or function to implement the model (e.g., `"lm"` for base R's linear model function).
+-   `set_mode()`: Specifies the modeling task, which is `"regression"` for linear regression.
+
+
+```{r}
+# Define the linear regression model specification
+lm_model_spec <- linear_reg() %>%
+  set_engine("lm") %>%       # Use the 'lm' engine (from base R stats package)
+  set_mode("regression")   # Specify the mode as regression
+
+# Print the model specification
+lm_model_spec
+```
+
+## 3. Model Training (`parsnip`)
+
+Now we train (or "fit") our specified model using the training data. The `fit()` function is used for this. We need to provide:
+
+1.  The model specification (`lm_model_spec`).
+2.  A formula defining the relationship: `Sales ~ TV + Radio + Newspaper` means `Sales` is the response variable, and `TV`, `Radio`, `Newspaper` are predictor variables. The `.` notation (`Sales ~ .`) means "Sales predicted by all other columns in the data."
+3.  The training dataset (`advertising_training`).
+
+
+```{r}
+# Fit the model to the training data
+lm_fit <- lm_model_spec %>%
+  fit(Sales ~ ., data = advertising_training) # Using . for all other columns as predictors
+
+# Print the fitted model object
+# This shows high-level information, including the call and coefficients.
+lm_fit
+```
+
+## 4. Exploring Training Results
+
+The `lm_fit` object contains a wealth of information about the trained model.
+
+### Accessing the Raw `lm` Object and `summary()`
+
+The `parsnip` fit object often wraps the original model object from the chosen engine. We can access it via `lm_fit$fit`. For `lm` engine models, this allows us to use familiar functions like `summary()`.
+
+```{r}
+# Extract the underlying 'lm' fit object and get its summary
+model_summary <- summary(lm_fit$fit)
+print(model_summary)
+```
+
+**Interpreting the `summary()` Output:**
+
+-   **`Call`**: Shows the formula and data used to fit the model.
+-   **`Residuals`**: A summary of the distribution of the residuals (differences between observed and predicted values for the training data). Ideally, residuals should be symmetrically distributed around zero.
+    -   `Min`, `1Q`, `Median`, `3Q`, `Max`: These are quantiles of the residuals. The median should be close to 0.
+-   **`Coefficients` Table**: This is the core of the regression output.
+    -   **`Estimate`**:
+        -   `(Intercept)` ($\hat{\beta}_0$): The estimated average `Sales` when `TV`, `Radio`, and `Newspaper` spending are all zero. In this context, it might not be directly interpretable if spending zero is unrealistic.
+        -   `TV` ($\hat{\beta}_{TV}$): For a one-unit increase in `TV` advertising spending (e.g., \$1000 if units are in thousands), `Sales` are estimated to increase by approx. 0.046 units, *holding `Radio` and `Newspaper` spending constant*.
+        -   `Radio` ($\hat{\beta}_{Radio}$): For a one-unit increase in `Radio` spending, `Sales` are estimated to increase by approx. 0.18 units, *holding `TV` and `Newspaper` spending constant*.
+        -   `Newspaper` ($\hat{\beta}_{Newspaper}$): For a one-unit increase in `Newspaper` spending, `Sales` are estimated to decrease by approx. 0.002 units, *holding `TV` and `Radio` spending constant*.
+    -   **`Std. Error`**: The standard error of the coefficient estimate. It measures the average amount that the coefficient estimates vary from the actual average value of our response variable. Smaller values indicate more precise estimates.
+    -   **`t value`**: The `Estimate` divided by the `Std. Error`. It's a test statistic for the null hypothesis that the true coefficient is zero ($\beta_j = 0$). Larger absolute t-values suggest the coefficient is significantly different from zero.
+    -   **`Pr(>|t|)` (p-value)**: The probability of observing a t-value as extreme as (or more extreme than) the one calculated, *if the true coefficient were zero*.
+        -   Small p-values (typically \< 0.05, indicated by asterisks: `***` for p \< 0.001, `**` for p \< 0.01, `*` for p \< 0.05, `.` for p \< 0.1) suggest that the predictor variable is significantly related to the `Sales`.
+        -   In this output: `TV` and `Radio` have very small p-values, indicating they are significant predictors. `Newspaper` has a p-value of 0.652, suggesting it's not a statistically significant predictor of `Sales` *when `TV` and `Radio` are already in the model*.
+-   **`Residual standard error`**: This is the estimate of $\sigma$, the standard deviation of the error term $\epsilon$. It's 1.766 on 144 degrees of freedom. This means the typical difference between the observed sales and the sales predicted by the model is about 1.766 units.
+-   **`Multiple R-squared`**: 0.8866. This means that approximately 88.7% of the variability in `Sales` can be explained by the linear relationship with `TV`, `Radio`, and `Newspaper` spending in the training data.
+-   **`Adjusted R-squared`**: 0.8842. This is a modified version of R-squared that has been adjusted for the number of predictors in the model. It's generally preferred over R-squared when comparing models with different numbers of predictors, as it penalizes for adding non-informative predictors.
+-   **`F-statistic`**: 375.2 on 3 and 144 DF. This tests the overall significance of the model, i.e., whether at least one predictor variable has a non-zero coefficient. The associated `p-value` is very small (\< 2.2e-16), indicating that the model as a whole is statistically significant.
+
+### Diagnostic Plots
+
+Diagnostic plots help us check the assumptions of the linear regression model. We can use the `plot()` function on the extracted `lm` object.
+
+```{r fig.height=8, fig.width=8}
+# Set up a 2x2 plotting area
+par(mfrow = c(2, 2))
+
+# Generate standard diagnostic plots for the lm object
+plot(
+  lm_fit$fit,
+  pch = 16,
+  col = '#006EA1',
+  id.n = 3 # Number of extreme points to label
+)
+
+# Reset plotting area to default
+par(mfrow = c(1, 1))
+```
+
+**Interpreting the Diagnostic Plots:**
+
+1.  **Residuals vs Fitted:**
+
+    -   **Purpose:** Checks for non-linearity in the relationship and non-constant variance of errors (heteroscedasticity).
+    -   **Ideal Pattern:** Points should be randomly scattered around the horizontal line at 0, with no discernible pattern (e.g., no curve, no funnel shape). The red line (a LOESS smoother) should be roughly flat and close to 0.
+    - **Observation:** The points are fairly scattered around the horizontal line at 0. The red LOESS smoother line is generally flat but shows a very slight wave or gentle U-shape, particularly a dip in the middle range of fitted values (around 10-15) and a slight rise at the higher end. There isn't a strong, obvious pattern like a pronounced curve or a distinct funnel shape, but the slight wave might suggest some very mild non-linearity or that the model fits slightly less well in the middle range of predicted sales.
+    - **Conclusion:** The linearity assumption appears to be mostly met, but there's a hint of a subtle pattern that might warrant further investigation if a very precise model is required. For many practical purposes, this might still be considered acceptable. The variance of residuals seems relatively constant across the range of fitted values.
+  
+2.  **Normal Q-Q (Quantile-Quantile):**
+
+    -   **Purpose:** Checks if the residuals are normally distributed.
+    -   **Ideal Pattern:** Points should fall approximately along the straight dashed line.
+    -   **Observation:** The points largely follow the straight dashed line, especially in the central region. However, there are noticeable deviations at both tails. Specifically, point #25 in the lower tail and point #1 in the upper tail are deviating from the line, indicating that the residuals might have slightly heavier tails than a perfect normal distribution (i.e., more extreme residuals than expected).
+    - **Conclusion:** The normality assumption is approximately met, but there's evidence of some outliers or slightly heavier tails in the residual distribution. This is common in real-world data. While not a severe violation, it's something to be aware of, especially if relying heavily on p-values and confidence intervals from small sample sizes (though this sample isn't extremely small).
+
+3.  **Scale-Location (or Spread-Location):**
+
+    -   **Purpose:** Also checks for homoscedasticity (constant variance of errors). It plots the square root of the absolute standardized residuals against the fitted values.
+    -   **Ideal Pattern:** Points should be randomly scattered with no clear trend. The red line should be roughly flat.
+    -   **Observation:** The points are scattered, and the red LOESS smoother line shows a slight downward trend initially and then flattens out and slightly rises. There isn't a strong funnel shape indicating clear heteroscedasticity. Point #25 stands out with a high standardized residual.
+    - **Conclusion:** The assumption of constant variance (homoscedasticity) seems reasonably met. The red line isn't perfectly flat but doesn't show a dramatic trend that would indicate severe heteroscedasticity.
+
+4.  **Residuals vs Leverage:**
+
+    -   **Purpose:** Helps identify influential data points: points that have a disproportionate impact on the regression results.
+    -   **Leverage:** Measures how far an observation's predictor values are from the average predictor values. High leverage points are unusual in their X values.
+    -   **Standardized Residuals:** Large residuals indicate points that are poorly predicted by the model.
+    -   **Ideal Pattern:** Most points should have low leverage and small residuals. Points in the top-right or bottom-right (high leverage, large residuals) are particularly influential. Cook's distance lines (often shown as dashed red lines) help identify points exceeding certain thresholds of influence.
+    -  **Observation**: Most points are clustered in the  left, indicating low leverage and small residuals.Point #25 has a notably large negative residual (it's far below the regression line) but relatively low leverage. This makes it an outlier but not necessarily highly influential in terms of changing the slope of the line drastically due to its X-values. Points #1 and #14 have somewhat higher leverage than most other points, but their residuals are not extreme. No points appear to be drastically outside the Cook's distance contours (the dashed grey lines, with the 0.5 contour being visible), suggesting no single point is overly influential to the extent that it dramatically changes the model parameters by itself.
+    - **Conclusion:** There are some outliers (like #25), but no single point appears to be excessively influential in a way that would severely distort the overall model fit according to Cook's distance.
+
+Overall, these diagnostic plots suggest that the assumptions of linear regression are reasonably met for this model on the training data.
+
+### Tidy Training Results with `broom` (`tidy()`, `glance()`)
+
+The `broom` package (part of `tidymodels`) provides functions to convert model outputs into tidy tibbles.
+
+-   `tidy()`: Summarizes the per-coefficient information.
+-   `glance()`: Summarizes model-level statistics.
+
+These can be called directly on the `parsnip` fit object.
+
+```{r}
+# Get coefficient-level information in a tidy format
+coefficients_tidy <- tidy(lm_fit)
+coefficients_tidy
+```
+
+
+```{r}
+# Get model-level performance metrics on the training data
+performance_glance <- glance(lm_fit)
+performance_glance
+```
+
+The `tidy()` output gives the same coefficient estimates, standard errors, t-statistics, and p-values as `summary()`, but in a convenient data frame format. The `glance()` output provides model summary statistics like R-squared, adjusted R-squared, sigma (residual standard error), the F-statistic, its p-value, and information criteria like AIC and BIC.
+
+### Variable Importance (`vip`)
+
+The `vip` package helps visualize which predictors are most important in the model. For linear models, importance is often based on the absolute magnitude of the t-statistic for each coefficient.
+
+```{r}
+vip(
+  lm_fit,
+  aesthetics = list(fill = "firebrick4") # Customize bar color
+) +
+  labs(title = "Predictor Variable Importance (Advertising Data)")
+```
+
+This plot confirms that `Radio` and `TV` are considered more important predictors than `Newspaper` in this model, based on their statistical significance (t-values).
+
+## 5. Evaluating on the Test Set (`yardstick`)
+
+Now, we evaluate our trained model (`lm_fit`) on the `advertising_test` data, which it has never seen before.
+
+### Making Predictions
+
+We use the `predict()` function.
+
+```{r}
+# Make predictions on the test set
+predictions_test <- lm_fit %>%
+  predict(new_data = advertising_test)
+
+# `predictions_test` is a tibble with a single column `.pred`
+head(predictions_test)
+```
+
+
+```{r}
+# Combine predictions with the actual values from the test set
+advertising_test_results <- advertising_test %>%
+  bind_cols(predictions_test)
+
+# View the combined results
+head(advertising_test_results)
+```
+
+### Regression Performance Metrics
+
+The `yardstick` package (part of `tidymodels`) provides functions to calculate common performance metrics. For regression, key metrics include RMSE and R-squared.
+
+**1. Root Mean Squared Error (RMSE):**
+
+-   **What it is:** RMSE measures the standard deviation of the residuals (prediction errors). It tells you the typical distance between the predicted values and the actual values, in the units of the response variable.
+-   **Formula:** $\text{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}$ Where $y_i$ are the actual values, $\hat{y}_i$ are the predicted values, and $n$ is the number of observations.
+-   **Interpretation:** Lower RMSE values indicate a better fit. An RMSE of 0 would mean perfect predictions. It's an absolute measure of fit, so its "goodness" depends on the scale of $Y$.
+
+**2. R-squared (**$R^2$):
+
+-   **What it is:** $R^2$ (Coefficient of Determination) represents the proportion of the variance in the dependent variable that is predictable from the independent variable(s).
+-   **Formula:** $R^2 = 1 - \frac{\text{SS}*{\text{res}}}{\text{SS}*{\text{tot}}} = 1 - \frac{\sum(y_i - \hat{y}*i)^2}{\sum(y_i - \bar{y})^2}$ Where $\text{SS}*{\text{res}}$ is the sum of squared residuals, and $\text{SS}_{\text{tot}}$ is the total sum of squares (proportional to the variance of $Y$). $\bar{y}$ is the mean of the actual values.
+-   **Interpretation:** $R^2$ ranges from 0 to 1 (though it can be negative on test data if the model is worse than just predicting the mean). An $R^2$ of 1 indicates that the model perfectly explains the variability in $Y$. An $R^2$ of 0 indicates that the model explains none of the variability. Higher values are generally better.
+
+**3. Mean Absolute Error (MAE):**
+
+-   **What it is:** MAE measures the average magnitude of the errors in a set of predictions, without considering their direction. It's the average over the test sample of the absolute differences between prediction and actual observation.
+-   **Formula:** $\text{MAE} = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|$
+-   **Interpretation:** Like RMSE, lower MAE values indicate a better fit. MAE is less sensitive to outliers than RMSE.
+
+Let's calculate these for our test set results.
+
+```{r}
+# Define the metrics we want
+regression_metrics <- metric_set(rmse, rsq, mae)
+
+# Calculate metrics on the test set
+test_set_performance <- advertising_test_results %>%
+  regression_metrics(truth = Sales, estimate = .pred)
+
+test_set_performance
+```
+
+-   **RMSE on test set:** The typical prediction error for Sales on unseen data is about 1.45 units. This is comparable to the training set RMSE (sigma = 1.766), suggesting the model generalizes reasonably well.
+-   **R-squared (**$R^2$) on test set: About 0.925, meaning \~92.5% of the variance in Sales in the test set is explained by the model. This is also close to the training R-squared (0.886), indicating good generalization.
+-   **MAE on test set:** On average, the model's sales predictions are off by about 1.15 units.
+
+### R-squared Plot (Actual vs. Predicted)
+
+A common way to visualize regression performance is to plot actual values against predicted values. For a perfect model, all points would lie on the line $y=x$ (actual = predicted).
+
+```{r}
+advertising_test_results %>%
+  ggplot(aes(x = .pred, y = Sales)) +
+  geom_point(color = '#006EA1', alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, color = 'orange', linetype = "dashed", linewidth = 1) +
+  labs(
+    title = 'Actual vs. Predicted Sales (Advertising Test Set)',
+    x = 'Predicted Sales',
+    y = 'Actual Sales'
+  ) +
+  theme_minimal() +
+  coord_fixed() # Ensures a 1:1 aspect ratio for the axes
+```
+
+The points cluster reasonably well around the $y=x$ line, visually confirming the good $R^2$ value.
+
+------------------------------------------------------------------------
+
+# Creating a Full Machine Learning Workflow (`workflows`)
+
+`tidymodels` promotes the use of `workflows` to bundle preprocessing steps (recipes) and model specifications. This streamlines the process, especially when dealing with cross-validation or more complex models.
+
+Let's re-do the `advertising` data analysis using a workflow, including some simple preprocessing.
+
+## 1. Data Splitting (Done)
+
+We'll use the `advertising_split`, `advertising_training`, and `advertising_test` objects created earlier.
+
+## 2. Feature Engineering (`recipes`)
+
+A `recipe` defines the sequence of steps for data preprocessing. For this example, let's:
+
+-   Apply Yeo-Johnson transformation to all numeric predictors to handle potential skewness.
+-   Normalize (center and scale) all numeric predictors.
+
+
+```{r}
+advertising_recipe <- recipe(Sales ~ ., data = advertising_training) %>%
+  step_YeoJohnson(all_numeric_predictors()) %>% # Transform numeric predictors
+  step_normalize(all_numeric_predictors())    # Normalize (center and scale)
+
+# Print the recipe
+advertising_recipe
+```
+
+**Note:** `all_numeric_predictors()` selects all numeric columns that are predictors (i.e., not the outcome).
+
+## 3. Model Specification (Done)
+
+We'll use the `lm_model_spec` defined earlier.
+
+```{r}
+lm_model_spec
+```
+
+## 4. Create a Workflow Object
+
+A `workflow` object combines the recipe and the model specification.
+
+```{r}
+advertising_wf <- workflow() %>%
+  add_model(lm_model_spec) %>%    # Add the parsnip model
+  add_recipe(advertising_recipe) # Add the recipe
+
+# Print the workflow object
+advertising_wf
+```
+
+## 5. Execute the Workflow with `last_fit()`
+
+The `last_fit()` function is a convenient way to fit the workflow on the full training set and evaluate it on the test set. It takes the workflow and the initial data split object.
+
+```{r}
+# Fit the workflow to the training data and evaluate on the test data
+advertising_final_fit <- advertising_wf %>%
+  last_fit(split = advertising_split)
+
+# Print the results
+advertising_final_fit
+```
+
+The output of `last_fit()` is a tibble that contains metrics, predictions, notes, and the workflow itself.
+
+### Collecting Metrics and Predictions from `last_fit()`
+
+We can easily extract the performance metrics and predictions on the test set.
+
+```{r}
+# Collect performance metrics on the test set
+final_metrics <- advertising_final_fit %>%
+  collect_metrics()
+
+final_metrics
+```
+
+
+```{r}
+# Collect predictions on the test set
+final_predictions <- advertising_final_fit %>%
+  collect_predictions()
+
+final_predictions
+```
+
+The metrics (RMSE and R-squared) are slightly better than our manual step-by-step approach, which is expected as the preprocessing steps (Yeo-Johnson and normalization) generally don't change the fundamental fit of a standard linear model much, but can be crucial for other model types or for improving stability.
+
+We can also plot the actual vs. predicted values from these `last_fit` predictions:
+
+```{r}
+final_predictions %>%
+  ggplot(aes(x = .pred, y = Sales)) +
+  geom_point(color = '#006EA1', alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, color = 'orange', linetype = "dashed", linewidth = 1) +
+  labs(
+    title = 'Actual vs. Predicted Sales (Workflow with last_fit)',
+    subtitle = 'Test Set Results for Advertising Data',
+    x = 'Predicted Sales',
+    y = 'Actual Sales'
+  ) +
+  theme_minimal() +
+  coord_fixed()
+```
+
+### Extracting the Fitted Workflow and Model Coefficients
+
+If you need the actual fitted model from `last_fit()` (e.g., to inspect coefficients or make new predictions), you can extract it.
+
+```{r}
+# The fitted workflow is stored in the .workflow column
+fitted_workflow_obj <- extract_workflow(advertising_final_fit)
+# This is the workflow that has been fitted to the training data.
+# From this, you can extract the parsnip model fit:
+final_parsnip_fit <- extract_fit_parsnip(fitted_workflow_obj)
+
+
+tidy(final_parsnip_fit)
+
+# Note: Coefficients will be on the scale of the transformed (normalized) data.
+# Interpreting them directly requires understanding the transformations.
+```
+
+The `vip` plot can also be generated from this `fitted_workflow_obj` (or `final_parsnip_fit`).
+
+```{r}
+vip(final_parsnip_fit, aesthetics = list(fill = "darkgreen")) +
+  labs(title = "Variable Importance from Workflow (Advertising Data)")
+```
+
+------------------------------------------------------------------------
+
+# Example Workflow: Predicting Home Selling Prices
+
+Let's apply the `workflow` approach to the `home_sales` dataset to predict `selling_price`.
+
+## 1. Data Splitting
+
+```{r}
+set.seed(271) # For reproducibility
+
+homes_split <- initial_split(
+  home_sales,
+  prop = 0.75,
+  strata = selling_price # Stratify by the outcome
+)
+
+homes_training <- training(homes_split)
+homes_test <- testing(homes_split)
+
+cat("Home sales training dimensions:", dim(homes_training), "\n")
+cat("Home sales testing dimensions:", dim(homes_test), "\n")
+```
+
+## 2. Feature Engineering (`recipes`)
+
+For this dataset, we have numeric predictors and a categorical predictor (`city`). Our recipe will:
+
+-   Apply Yeo-Johnson transformation to all numeric predictors.
+-   Normalize all numeric predictors.
+-   Create dummy variables for the `city` categorical predictor. We also use `step_novel` to handle any new city levels that might appear in new data but weren't in training, and `step_other` to group infrequent city levels.
+
+<!-- end list -->
+
+```{r}
+homes_recipe <- recipe(selling_price ~ ., data = homes_training) %>%
+  step_YeoJohnson(all_numeric_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_novel(all_nominal_predictors(), new_level = "new_city_level") %>% # Handle new factor levels
+  step_other(all_nominal_predictors(), threshold = 0.05, other = "Other_City") %>% # Group infrequent levels
+  step_dummy(all_nominal_predictors()) # Create dummy variables for city
+
+# Check the recipe by prepping and baking (optional, but good for debugging)
+# prep(homes_recipe) %>% bake(new_data = head(homes_test))
+homes_recipe
+```
+
+
+## 3. Model Specification (Using `lm_model_spec` from before)
+
+We'll use the same linear regression model specification.
+
+## 4. Create a Workflow
+
+```{r}
+homes_wf <- workflow() %>%
+  add_model(lm_model_spec) %>%
+  add_recipe(homes_recipe)
+
+homes_wf
+```
+
+## 5. Execute the Workflow with `last_fit()`
+
+```{r}
+homes_final_fit <- homes_wf %>%
+  last_fit(split = homes_split)
+
+# Collect and print metrics
+home_metrics <- homes_final_fit %>% collect_metrics()
+
+home_metrics
+```
+
+
+```{r}
+# Collect predictions for plotting
+home_predictions <- homes_final_fit %>% collect_predictions()
+```
+
+### R-squared Plot for Home Sales
+
+```{r}
+home_predictions %>%
+  ggplot(aes(x = .pred, y = selling_price)) +
+  geom_point(color = '#006EA1', alpha = 0.25) + # alpha for dense data
+  geom_abline(intercept = 0, slope = 1, color = 'orange', linetype = "dashed", linewidth = 1) +
+  labs(
+    title = 'Actual vs. Predicted Selling Price (Home Sales Test Set)',
+    x = 'Predicted Selling Price',
+    y = 'Actual Selling Price'
+  ) +
+  theme_minimal() +
+  coord_fixed(xlim = range(c(home_predictions$.pred, home_predictions$selling_price)), # Ensure full range visibility
+              ylim = range(c(home_predictions$.pred, home_predictions$selling_price)))
+```
+
+The $R^2$ value for the home sales data (around 0.65 depending on exact run/preprocessing) is lower than for the advertising data, suggesting that predicting home prices is a more complex task with more unexplained variance by these predictors alone. The plot shows more scatter.
+
+### Variable Importance for Home Sales
+
+
+```{r}
+
+fitted_workflow_obj <- extract_workflow(homes_final_fit)
+# This is the workflow that has been fitted to the training data.
+# From this, you can extract the parsnip model fit:
+final_parsnip_fit <- extract_fit_parsnip(fitted_workflow_obj)
+
+
+tidy(final_parsnip_fit)
+```
+
+
+```{r}
+# Create VIP plot
+vip(final_parsnip_fit, num_features = 15, aesthetics = list(fill = "steelblue")) + # Show top 15 features
+  labs(title = "Variable Importance (Home Sales Data)")
+```
+
+This plot shows which features (including dummy variables for cities) had the largest impact on the model predictions. 
+------------------------------------------------------------------------
+
+# Conclusion
+
+This notebook provided a comprehensive overview of performing linear regression using the `tidymodels` framework. Key takeaways include:
+
+-   **Understanding Linear Regression:** Its assumptions, how coefficients are interpreted, and the importance of diagnostic checks.
+-   **`tidymodels` Philosophy:** A structured approach involving data splitting, model specification, recipe-based preprocessing, and evaluation.
+-   **Key Packages:**
+    -   `rsample` for data splitting.
+    -   `parsnip` for consistent model specification and fitting.
+    -   `recipes` for preprocessing pipelines.
+    -   `workflows` for bundling recipes and models.
+    -   `yardstick` for model evaluation metrics.
+    -   `broom` for tidying model outputs.
+    -   `vip` for variable importance.
+-   **Workflow Benefits:** `workflows` combined with `last_fit()` streamline the process of training and evaluating on test data, ensuring correct application of preprocessing steps.
+
+Linear regression is a powerful tool, but its effectiveness relies on careful data preparation, checking assumptions, and appropriate interpretation of results. `tidymodels` provides an excellent environment for conducting these analyses in a reproducible and organized manner.
+
+**Further Exploration:**
+
+-   Experiment with different preprocessing steps in the recipes.
+-   Try adding interaction terms to the model formula or recipe.
+-   Explore other regression models available in `parsnip` (e.g., regularized regression, decision trees).
+
+------------------------------------------------------------------------
