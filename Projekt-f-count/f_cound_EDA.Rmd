@@ -1,0 +1,141 @@
+
+---
+title: "Exploratory Data Analysis (EDA)"
+author: "Orły"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introduction
+
+This notebook conducts an **Exploratory Data Analysis (EDA)** on the `richmondway.csv` dataset, which contains episode-level statistics related to the character Roy Kent in a TV series.
+
+---
+
+## 1. Data Loading and Inspection
+
+```{r}
+library(tidyverse)
+library(skimr)
+library(visdat)
+
+df <- read_csv("richmondway.csv")
+
+dim(df)
+glimpse(df)
+skim(df)
+```
+
+---
+
+## 2. Missing Values Overview
+
+```{r fig.width=8, fig.height=5}
+vis_miss(df, cluster = TRUE) +
+  labs(title = "Missing Values")
+```
+
+---
+
+## 3. Data Cleaning and Preparation
+
+```{r}
+df <- df %>%
+  mutate(
+    Season = as.integer(Season),
+    Episode = as.integer(Episode),
+    F_score = as.numeric(F_score),
+    F_perc = as.numeric(F_perc),
+    year = 2020 + Season
+  )
+
+sum(duplicated(df))
+```
+
+---
+
+## 4. Univariate Analysis
+
+### Distribution of F_score
+
+```{r fig.width=10}
+p1 <- ggplot(df, aes(x = F_score)) +
+  geom_histogram(bins = 15, fill = "skyblue", color = "black") +
+  labs(title = "Histogram of F_score", x = "F_score", y = "Frequency")
+
+p2 <- ggplot(df, aes(y = F_score)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Boxplot of F_score", y = "F_score")
+
+p1
+p2
+```
+
+### Distribution of F_perc
+
+```{r fig.width=10}
+p1 <- ggplot(df, aes(x = F_perc)) +
+  geom_histogram(bins = 15, fill = "lightcoral", color = "black") +
+  labs(title = "Histogram of F_perc", x = "F_perc (%)", y = "Frequency")
+
+p2 <- ggplot(df, aes(y = F_perc)) +
+  geom_boxplot(fill = "lightcoral") +
+  labs(title = "Boxplot of F_perc", y = "F_perc (%)")
+
+p1
+p2
+```
+
+---
+
+## 5. Bivariate Analysis
+
+### F_score vs IMDB Rating
+
+```{r}
+ggplot(df, aes(x = Imdb_rating, y = F_score)) +
+  geom_point(color = "darkblue", size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "F_score vs IMDb Rating", x = "IMDb Rating", y = "F_score")
+```
+
+---
+
+## 6. Categorical Flags
+
+```{r}
+df %>%
+  group_by(Dating_flag) %>%
+  summarise(mean_f = mean(F_score, na.rm = TRUE),
+            mean_imdb = mean(Imdb_rating, na.rm = TRUE))
+
+df %>%
+  group_by(Coaching_flag) %>%
+  summarise(mean_f = mean(F_score, na.rm = TRUE),
+            mean_imdb = mean(Imdb_rating, na.rm = TRUE))
+```
+
+---
+
+## 7. Time Series View (by Episode Order)
+
+```{r}
+ggplot(df, aes(x = Episode_order, y = F_score)) +
+  geom_line(color = "purple", size = 1) +
+  geom_point() +
+  labs(title = "F_score Over Episode Order", x = "Episode Order", y = "F_score")
+```
+
+---
+
+## 8. Summary
+
+This EDA highlights:
+- The distribution and variation in Roy Kent’s `F_score` and `F_perc`.
+- How these scores vary with `IMDb rating`, and across flags like `Dating_flag` and `Coaching_flag`.
+- The pattern of Roy’s intensity across the season chronology.
+
