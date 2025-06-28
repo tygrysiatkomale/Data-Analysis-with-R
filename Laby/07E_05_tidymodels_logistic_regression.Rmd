@@ -1,0 +1,697 @@
+---
+title: "Logistic Regression with Tidymodels"
+author: "Piotr Kosowski"
+date: "r Sys.Date()"
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = 'center')
+```
+
+# Introduction to Logistic Regression
+
+Logistic regression is a powerful statistical method often used for binary classification problems, where the outcome variable is categorical with two possible outcomes (e.g., Yes/No, True/False, Success/Failure). It can also be extended to multiclass classification (multinomial logistic regression), but here we'll focus on the binary case.
+
+## Why Not Linear Regression for Binary Outcomes?
+
+If the outcome variable is binary (coded as $0$ and $1$), using linear regression directly poses several problems:
+
+-   **Non-sensical Predictions:** Linear regression can predict values outside the $0-1$ range, which are meaningless as probabilities.
+-   **Non-constant Variance (Heteroscedasticity):** The variance of a binary outcome depends on its mean, violating the homoscedasticity assumption of linear regression.
+-   **Non-Normal Errors:** The errors for a binary outcome are not normally distributed.
+
+Logistic regression addresses these issues by modeling the probability that the outcome belongs to a particular category.
+
+## The Core Idea: Modeling Probabilities
+
+Logistic regression models the probability of the positive class (usually denoted as $Y=1$) using a transformation of a linear combination of predictor variables.
+
+**Linear Combination:** Similar to linear regression, we start with $z = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p$. This value $z$ can range from $-\infty$ to $+\infty$.
+
+**Sigmoid (Logistic)Function:** To transform $z$ into a probability (which must be between $0$ and $1$), logistic regression uses the sigmoid function (also known as the logistic function):
+
+$$P(Y=1 | X_1, \dots, X_p) = \frac{e^z}{1 + e^z} = \frac{1}{1 + e^{-z}}$$
+
+This function S-shaped curve that maps any real-valued number into the range $(0, 1)$.
+
+## Odds, Log-Odds (Logit), and Interpretation
+
+To understand the coefficients ($\beta_i$) in logistic regression, it's helpful to think in terms of odds and log-odds.
+
+**Odds:** The ratio of the probability of an event occurring to the probability of it not occurring. $$\text{Odds}(Y=1) = \frac{P(Y=1)}{P(Y=0)} = \frac{P(Y=1)}{1 - P(Y=1)}$$
+
+Odds can range from $0$ to $\infty$. If $P(Y=1) = 0.8$, Odds = $0.8 / 0.2 = 4$ (event is 4 times more likely to occur than not). If $P(Y=1) = 0.5$, Odds = $0.5 / 0.5 = 1$ (event is equally likely to occur or not).
+
+**Log-Odds (Logit):** The natural logarithm of the odds.
+
+$$\text{logit}(P(Y=1)) = \ln(\text{Odds}(Y=1)) = \ln\left(\frac{P(Y=1)}{1 - P(Y=1)}\right)$$
+
+The logit transformation maps probabilities from $(0,1)$ to the entire real number line ($-\infty, +\infty$). Crucially, in logistic regression, the log-odds are modeled as a linear function of the predictors: $$\ln\left(\frac{P(Y=1)}{1 - P(Y=1)}\right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p$$
+
+**Interpreting Coefficients (**$\beta_i$):
+
+A one-unit increase in a predictor $X_i$, holding all other predictors constant, is associated with a $\beta_i$ change in the log-odds of $Y=1$. More intuitively, by exponentiating the coefficient ($e^{\beta_i}$), we get the Odds Ratio (OR). If $X_i$ increases by one unit, the odds of $Y=1$ are multiplied by a factor of $e^{\beta_i}$, holding other predictors constant.
+
+If $e^{\beta_i} > 1$: $X_i$ increases the odds of $Y=1$. If $e^{\beta_i} < 1$: $X_i$ decreases the odds of $Y=1$. If $e^{\beta_i} = 1$: $X_i$ has no effect on the odds of $Y=1$ (meaning $\beta_i = 0$). For categorical predictors, $e^{\beta_i}$ is the ratio of odds for the specified category compared to the reference category.
+
+## Assumptions of Logistic Regression used for classification
+
+While less stringent than linear regression, logistic regression still has some assumptions:
+
+-   **Binary or Ordinal Outcome:** The dependent variable is binary (or ordinal for ordinal logistic regression).
+-   **Independence of Observations:** Oservations should be independent of each other.
+-   **Linearity in the Logit:** The relationship between the continuous predictors and the log-odds of the outcome is linear.
+-   **Absence of Perfect Multicollinearity:** Predictors should not be perfectly correlated.
+-   **Large Sample Size:** Logistic regression typically requires a reasonably large sample size for stable estimates, especially when there are many predictors.
+
+## Further Reading
+
+-   Wikipedia: [Logistic Regression](https://en.wikipedia.org/wiki/Logistic_regression)
+-   StatQuest: [Logistic Regression](https://www.youtube.com/watch?v=yIYKR4sgzI8) (Video)
+-   Chapter 4 of "An Introduction to Statistical Learning" by James, Witten, Hastie, and Tibshirani (Book, available online)
+
+This notebook will demonstrate how to perform logistic regression using the tidymodels framework, focusing on binary classification.
+
+# Setting Up the Environment
+
+We'll load tidymodels for the core modeling framework, tidyverse for data manipulation and visualization, and vip for variable importance plots.
+
+```{r}
+libs <- c("tidyverse", "tidymodels", "vip")
+
+installed_libs <- libs %in% rownames(installed.packages())
+
+if (any(installed_libs == FALSE)) {
+  install.packages(libs[!installed_libs]) 
+  }
+
+# Load libraries
+
+library(tidyverse)
+library(tidymodels)
+library(vip)
+
+```
+
+# Datasets:
+
+**heart_disease.rds**: Containing information about patients and whether they have heart disease.
+
+**employee_data.rds**: Containing information about employees and whether they left the company (attrition).
+
+```{r}
+# Load datasets
+employee_data <- read_rds('employee_data.rds')
+heart_df_raw <- read_rds('heart_disease.rds')
+```
+
+```{r}
+# For the heart disease data, we'll select specific columns as per the original notebook
+heart_df <- heart_df_raw %>%
+  select(heart_disease, age, chest_pain,max_heart_rate, resting_blood_pressure)
+
+```
+
+Let's view the prepared heart_df:
+
+```{r}
+glimpse(heart_df)
+```
+
+```{r}
+head(heart_df)
+```
+
+# Logistic Regression with tidymodels (Heart Disease Data)
+
+We'll follow the tidymodels workflow to predict heart_disease using the heart_df dataset.
+
+## Data Splitting (rsample)
+
+First, split the data into training and testing sets. For classification, it's crucial that the response variable is a factor. tidymodels functions (especially in yardstick for evaluation) often assume the first level of the factor is the "positive" or event of interest.
+
+**Checking and Setting Factor Levels:** Our target is heart_disease. We want to predict 'Yes' (presence of heart disease). Let's check its levels.
+
+```{r}
+# Ensure heart_disease is a factor
+heart_df <- heart_df %>% 
+  mutate(heart_disease = as.factor(heart_disease))
+
+levels(heart_df$heart_disease)
+```
+
+The output shows "Yes" is already the first level. If it weren't (e.g., if "No" was first), we would reorder it:
+
+```{r}
+# Example if reordering was needed:
+# heart_df <- heart_df %>% 
+#  mutate(heart_disease = factor(heart_disease, levels = c("Yes", "No")))
+```
+
+Now, we can split the data. We'll use stratified sampling on heart_disease to maintain similar proportions of cases in both training and testing sets.
+
+```{r}
+set.seed(345) # For reproducibility
+
+heart_split <- initial_split(heart_df, prop = 0.75, strata = heart_disease) # Stratify by the outcome variable )
+
+heart_training <- training(heart_split)
+heart_test <- testing(heart_split)
+
+cat("Heart disease training set dimensions:", dim(heart_training), "\n")
+cat("Heart disease testing set dimensions:", dim(heart_test), "\n")
+```
+
+## Feature Engineering (recipes)
+
+A recipe defines the sequence of steps for data preprocessing. These steps are estimated from the training data and then applied to any data (training, testing, new data).
+
+For the heart_training data, our recipe will: - Define the model formula: heart_disease \~ . (predict heart_disease using all other variables). - Apply Yeo-Johnson transformation to all numeric predictors to handle skewness. - Normalize (center and scale) all numeric predictors. - Convert the chest_pain nominal (categorical) predictor into dummy variables.
+
+```{r}
+heart_recipe <- recipe(
+  heart_disease ~ .,      # Formula: predict heart_disease using all other columns
+  data = heart_training   # Use training data to learn transformations
+) %>%
+  # Step 1: Handle skewness in numeric predictors
+  step_YeoJohnson(all_numeric_predictors()) %>%
+  # Step 2: Normalize numeric predictors
+  step_normalize(all_numeric_predictors()) %>%
+  # Step 3: Create dummy variables for nominal (categorical) predictors
+  step_dummy(all_nominal_predictors())
+  # Alternative for step_dummy: step_dummy(chest_pain) if only chest_pain is nominal
+
+```
+
+```{r}
+# Print the recipe
+heart_recipe
+```
+
+**Detailed Explanation of Recipe Steps:**
+
+-   `recipe(heart_disease ~ ., data = heart_training)`: This initializes the recipe. The formula heart_disease \~ . specifies that heart_disease is the outcome variable, and . indicates that all other columns in heart_training will be used as predictors. The data = heart_training argument is crucial. The recipe will "learn" any necessary parameters for transformations (like means, standard deviations for normalization, or optimal lambda for Yeo-Johnson) only from the training data. This prevents data leakage from the test set into the training process.
+-   `step_YeoJohnson(all_numeric_predictors())`: **Purpose:** This step applies the Yeo-Johnson transformation to all numeric predictor variables. The Yeo-Johnson transformation is similar to the Box-Cox transformation but can handle both positive and negative values. Its primary goal is to reduce skewness in the data, making the distribution of the variables more symmetric (closer to normal). **Why it's used:** Many statistical models, including some aspects of logistic regression (like assumptions about linearity in the logit for continuous predictors), can benefit from predictors that have more symmetric distributions. Reducing skewness can sometimes improve model stability and performance. `all_numeric_predictors()`: This is a recipes selector that targets all columns that are numeric and are designated as predictors (not outcomes).
+-   `step_normalize(all_numeric_predictors())`: **Purpose:** This step centers and scales all numeric predictor variables. Centering subtracts the mean of the variable (learned from training data) from each value, and scaling divides by the standard deviation (also learned from training data). The result is that each normalized variable will have a mean of approximately $0$ and a standard deviation of approximately $1$. **Why it's used:**
+    -   Algorithm Sensitivity: While standard logistic regression (using glm) is not highly sensitive to feature scaling for its coefficient estimation, many other algorithms (like SVMs, KNNs, neural networks, and regularized regression like LASSO/Ridge) perform much better or converge faster when features are on a similar scale.
+    -   Coefficient Comparability (in some contexts): When predictors are on the same scale, their coefficient magnitudes can sometimes give a rough indication of their relative importance, although this is more nuanced.
+    -   Numerical Stability: Can help with numerical stability in the optimization algorithms used to fit models. Consistency in tidymodels: It's good practice within tidymodels workflows, ensuring compatibility if you later switch to a different model engine that requires normalization.
+-   `step_dummy(all_nominal_predictors())`: **Purpose:** This step converts categorical (nominal) predictor variables into one or more numeric binary ($0/1$) "dummy" variables. For a factor with $k$ levels, step_dummy typically creates $k-1$ dummy variables by default (to avoid perfect multicollinearity, one level becomes the reference). This is also known as one-hot encoding (though one-hot encoding often creates $k$ variables). **Why it's used:** Most statistical models, including logistic regression implemented via glm, require numeric inputs. Categorical variables need to be converted into a numerical format that the model can understand. Each dummy variable represents one level of the original categorical variable, indicating its presence ($1$) or absence ($0$). all_nominal_predictors(): This selector targets all columns that are factors or character strings and are predictors. `all_nominal_predictors()`: This selector targets all columns that are factors or character strings and are predictors.
+
+Example: If chest_pain has levels "typical angina", "atypical angina", "non-anginal pain", "asymptomatic", step_dummy might create three new columns like chest_pain_atypical.angina, chest_pain_non.anginal.pain, chest_pain_asymptomatic. "typical angina" would be the reference (all three dummies are 0).
+
+**Checking the Recipe:** It's good practice to `prep()` the recipe on the training data and then `bake()` it on a small portion of data (or the training data itself) to see the transformations.
+
+```{r}
+# Prep the recipe (estimate parameters from training data)
+prepared_heart_recipe <- prep(heart_recipe, training = heart_training)
+
+# Bake the recipe (apply transformations to data)
+baked_training_data <- bake(prepared_heart_recipe, new_data = heart_training)
+
+head(baked_training_data)
+```
+
+Note the new dummy variable columns for chest_pain and transformed numeric columns.
+
+## Model Specification (parsnip)
+
+We define our logistic regression model using logistic_reg() from parsnip.
+
+**Engine:** "glm" (for Generalized Linear Models, which logistic regression is). **Mode:** "classification".
+
+```{r}
+logistic_model_spec <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+
+logistic_model_spec
+```
+
+## Create a Workflow (workflows)
+
+Bundle the recipe and model specification into a single workflow object.
+
+```{r}
+heart_wf <- workflow() %>%
+  add_model(logistic_model_spec) %>%  # Add the parsnip model
+  add_recipe(heart_recipe)          # Add the recipe
+
+heart_wf
+```
+
+## Model Training (workflows)
+
+Fit the workflow to the heart_training data. The workflow automatically applies the recipe before fitting the model.
+
+```{r}
+heart_logistic_fit <- heart_wf %>%
+  fit(data = heart_training)
+
+heart_logistic_fit
+```
+
+## Exploring the Trained Model
+
+**Extracting the Fitted Model and Coefficients**
+
+To examine coefficients, we first extract the fitted parsnip model object, which in turn contains the glm object.
+
+```{r}
+# Extract the parsnip model fit
+heart_trained_parsnip_model <- extract_fit_parsnip(heart_logistic_fit)
+
+heart_trained_parsnip_model
+```
+
+```{r}
+# Get tidy coefficient information
+heart_coefficients <- tidy(heart_trained_parsnip_model)
+
+heart_coefficients
+
+```
+
+```{r}
+# Calculate and add Odds Ratios
+heart_coefficients_with_or <- heart_coefficients %>%
+  mutate(odds_ratio = exp(estimate))
+
+heart_coefficients_with_or
+
+```
+
+**Interpreting Coefficients (from heart_coefficients_with_or):**
+
+-   **`(Intercept)`:**
+    -   **`estimate` (Log-odds):** $1.0790730843$
+        -   This means that for an individual with average (post-transformation and normalization) values for age, max heart rate, and resting blood pressure, and belonging to the reference category for `chest_pain` (likely "typical angina" if it was the baseline for dummy variables), the log-odds of the event occurring is $1.079$.
+    -   **`std.error`:** $0.5401122$
+    -   **`statistic` (z-value):** $1.997868223$
+    -   **`p.value`:** $0.0457309485$
+        -   The p-value is less than $0.05$, suggesting that the intercept is statistically significantly different from zero at the $5\%$ significance level.
+    -   **Odds Ratio (OR):** $e^{1.0790730843} \approx 2.94$
+        -   The odds of the event occurring for an individual with reference values for all predictors are approximately $2.94$ times the odds of the event not occurring.
+-   **`age`:**
+    -   **`estimate` (Log-odds):** $0.0007371182$
+    -   **`std.error`:** $0.1882117$
+    -   **`statistic` (z-value):** $0.003916431$
+    -   **`p.value`:** $0.9968751482$
+        -   The very high p-value suggests that, after accounting for other variables in the model, (transformed and normalized) age does not have a statistically significant effect on the log-odds of the event occurring.
+    -   **Odds Ratio (OR):** $e^{0.0007371182} \approx 1.0007$
+        -   A one-unit (standard deviation post-transformation) increase in age is associated with multiplying the odds of the event by $1.0007$ (practically no change), holding other predictors constant.
+-   **`max_heart_rate`:**
+    -   **`estimate` (Log-odds):** $0.7451692897$
+    -   **`std.error`:** $0.2046386$
+    -   **`statistic` (z-value):** $3.641391307$
+    -   **`p.value`:** $0.0002711686$
+        -   The very low p-value ($< 0.001$) indicates that (transformed and normalized) maximum heart rate is a statistically significant predictor.
+    -   **Odds Ratio (OR):** $e^{0.7451692897} \approx 2.106$
+        -   A one-unit (standard deviation post-transformation) increase in maximum heart rate is associated with an approximate $2.11$-fold increase in the odds of the event occurring, holding other predictors constant.
+-   **`resting_blood_pressure`:**
+    -   **`estimate` (Log-odds):** $-0.5853136399$
+    -   **`std.error`:** $0.1889036$
+    -   **`statistic` (z-value):** $-3.098478767$
+    -   **`p.value`:** $0.0019451691$
+        -   The low p-value ($< 0.01$) indicates that (transformed and normalized) resting blood pressure is a statistically significant predictor.
+    -   **Odds Ratio (OR):** $e^{-0.5853136399} \approx 0.557$
+        -   A one-unit (standard deviation post-transformation) increase in resting blood pressure is associated with multiplying the odds of the event by $0.557$ (i.e., decreasing the odds by about $44.3\%$), holding other predictors constant.
+-   **`chest_pain_atypical` (dummy variable for atypical chest pain):**
+    -   **`estimate` (Log-odds):** $0.0820484216$
+    -   **`std.error`:** $0.7154486$
+    -   **`statistic` (z-value):** $0.114681087$
+    -   **`p.value`:** $0.9086979050$
+        -   The high p-value suggests that, compared to the reference category of chest pain, atypical chest pain is not statistically significantly different in its effect on the log-odds of the event.
+    -   **Odds Ratio (OR):** $e^{0.0820484216} \approx 1.085$
+        -   Having atypical chest pain (compared to the reference category) multiplies the odds of the event by $1.085$, holding other predictors constant.
+-   **`chest_pain_non_anginal` (dummy variable for non-anginal chest pain):**
+    -   **`estimate` (Log-odds):** $0.3259012270$
+    -   **`std.error`:** $0.6318607$
+    -   **`statistic` (z-value):** $0.515780175$
+    -   **`p.value`:** $0.6060079506$
+        -   The high p-value suggests that, compared to the reference category of chest pain, non-anginal chest pain is not statistically significantly different in its effect on the log-odds of the event.
+    -   **Odds Ratio (OR):** $e^{0.3259012270} \approx 1.385$
+        -   Having non-anginal chest pain (compared to the reference category) multiplies the odds of the event by $1.385$, holding other predictors constant.
+-   **`chest_pain_asymptomatic` (dummy variable for asymptomatic chest pain):**
+    -   **`estimate` (Log-odds):** $-1.8997942945$
+    -   **`std.error`:** $0.5941078$
+    -   **`statistic` (z-value):** $-3.197726715$
+    -   **`p.value`:** $0.0013851548$
+        -   The low p-value ($< 0.01$) indicates that, compared to the reference category of chest pain, being asymptomatic (or having asymptomatic pain) is a statistically significant predictor.
+    -   **Odds Ratio (OR):** $e^{-1.8997942945} \approx 0.1496$
+        -   Being asymptomatic (compared to the reference category) is associated with multiplying the odds of the event by $0.1496$ (i.e., decreasing the odds by about $85\%$), holding other predictors constant.
+
+**Summary of Statistical Significance:**
+
+-   **Statistically significant predictors (at** $\alpha = 0.05$ level):
+    -   `max_heart_rate` (positive effect on log-odds)
+    -   `resting_blood_pressure` (negative effect on log-odds)
+    -   `chest_pain_asymptomatic` (negative effect on log-odds compared to the reference category)
+    -   The Intercept (`(Intercept)`)
+-   **Statistically non-significant predictors (at** $\alpha = 0.05$ level):
+    -   `age`
+    -   `chest_pain_atypical`
+    -   `chest_pain_non_anginal`
+
+**Overall Conclusions:**
+
+The model suggests that higher (transformed) maximum heart rate is associated with higher log-odds (and thus higher probability) of the event occurring. Conversely, higher (transformed) resting blood pressure and being in the "asymptomatic" chest pain category (compared to the reference category) are associated with lower log-odds (and thus lower probability) of the event. Age (after transformations) and the other specified chest pain categories do not appear to have a statistically significant impact in this particular model when other variables are included.
+
+**Important Notes:**
+
+-   **Interpretation of Transformed Variables:** Remember that coefficients for `age`, `max_heart_rate`, and `resting_blood_pressure` refer to their values after the Yeo-Johnson transformation and normalization. A one-unit change in these variables means a change of one standard deviation on the transformed scale.
+-   **Reference Category:** For the `chest_pain_...` dummy variables, interpretation is always relative to the omitted reference category (likely "typical angina").
+-   **Multicollinearity:** These results do not reveal potential multicollinearity among predictors, which could affect the stability and interpretation of coefficients.
+-   **Overall Model Fit:** This table of coefficients itself does not inform about the overall predictive quality of the model (e.g., AUC, accuracy). Evaluation metrics are needed for that assessment.
+
+## Variable Importance (vip)
+
+```{r}
+vip(heart_trained_parsnip_model, aesthetics = list(fill = "coral")) +
+  labs(title = "Predictor Variable Importance (Heart Disease)")
+```
+
+This plot shows which predictors (including the dummy variables) have the largest impact on the model's predictions.
+
+## Evaluating Model Performance on the Test Set (yardstick)
+
+We'll predict on heart_test and evaluate using various classification metrics.
+
+Making Predictions (Class and Probabilities)
+
+```{r}
+# Predicted classes
+pred_class_heart <- heart_logistic_fit %>%
+  predict(new_data = heart_test, type = "class")
+
+# Predicted probabilities
+pred_prob_heart <- heart_logistic_fit %>%
+  predict(new_data = heart_test, type = "prob")
+
+# Combine with true values from test set
+heart_test_results <- heart_test %>%
+  select(heart_disease) %>% # Select the true outcome
+  bind_cols(pred_class_heart) %>%  # Add predicted class
+  bind_cols(pred_prob_heart)   # Add predicted probabilities
+
+
+head(heart_test_results)
+# Note: .pred_Yes contains P(heart_disease = 'Yes'), .pred_No contains P(heart_disease = 'No')
+
+```
+
+### Detailed Classification Metrics (`yardstick`)
+
+Let's define and interpret common classification metrics. The "positive" class is `heart_disease = 'Yes'`.
+
+**1. Confusion Matrix (`conf_mat()`):** A table showing the performance of a classification model.
+
+-   **Rows:** Predicted Class
+-   **Columns:** True Class (Reference)
+-   **Cells:**
+    -   **True Positives (TP):** Correctly predicted 'Yes' (event occurred, model predicted event).
+    -   **True Negatives (TN):** Correctly predicted 'No' (event did not occur, model predicted no event).
+    -   **False Positives (FP) / Type I Error:** Incorrectly predicted 'Yes' (event did not occur, but model predicted event). E.g., predicting heart disease when there is none.
+    -   **False Negatives (FN) / Type II Error:** Incorrectly predicted 'No' (event occurred, but model predicted no event). E.g., failing to predict heart disease when it's present.
+
+**2. Accuracy (`accuracy()`):**
+
+-   **Formula:** $(TP + TN) / (TP + TN + FP + FN)$
+-   **Interpretation:** The proportion of total predictions that were correct.
+-   **Example:** If Accuracy = $0.80$, then $80\%$ of patients were correctly classified.
+-   **Caution:** Can be misleading for imbalanced datasets (where one class is much more frequent than the other). A model predicting the majority class all the time can have high accuracy but be useless.
+
+**3. Precision (Positive Predictive Value - PPV) (`precision()`):**
+
+-   **Formula:** $TP / (TP + FP)$
+-   **Interpretation:** Of those patients the model predicted *would have* heart disease, what proportion *actually have* heart disease?
+-   **Example:** If Precision = $0.83$, then $83\%$ of patients predicted to have heart disease truly do.
+-   **Usefulness:** High precision is important when the cost of a False Positive is high (e.g., wrongly diagnosing a healthy person and subjecting them to unnecessary, costly, or risky treatments).
+
+**4. Recall (Sensitivity, True Positive Rate - TPR) (`recall()`):**
+
+-   **Formula:** $TP / (TP + FN)$
+-   **Interpretation:** Of all patients who *actually have* heart disease, what proportion did the model correctly identify?
+-   **Example:** If Recall = $0.71$, then the model identified $71\%$ of all true heart disease cases.
+-   **Usefulness:** High recall is important when the cost of a False Negative is high (e.g., failing to diagnose a person who has heart disease, thus missing the opportunity for early treatment).
+
+**5. Specificity (True Negative Rate - TNR) (`specificity()`):**
+
+-   **Formula:** $TN / (TN + FP)$
+-   **Interpretation:** Of all patients who *do not have* heart disease, what proportion did the model correctly identify as not having it?
+-   **Example:** If Specificity = $0.88$, then the model correctly identified $88\%$ of patients who do not have heart disease.
+
+**6. F1-Score (`f_meas()`):**
+
+-   **Formula:** $2 \times (\text{Precision} \times \text{Recall}) / (\text{Precision} + \text{Recall})$
+-   **Interpretation:** The harmonic mean of Precision and Recall. It provides a single score that balances both concerns. Ranges from $0$ (worst) to $1$ (best).
+-   **Example:** An F1-score of $0.76$ indicates a good balance between precision and recall.
+-   **Usefulness:** Often a better measure than accuracy for imbalanced classes because it accounts for both FPs and FNs.
+
+**7. ROC Curve (`roc_curve()` & `autoplot()`):**
+
+-   **Receiver Operating Characteristic Curve.**
+-   **Construction:** Plots Sensitivity (TPR) on the y-axis against $1 - \text{Specificity}$ (False Positive Rate, FPR) on the x-axis for all possible classification probability thresholds (cut-off points).
+-   **Interpretation:**
+    -   A model with perfect discrimination would have an ROC curve that passes through the top-left corner ($(0,1)$) (100% sensitivity, 100% specificity).
+    -   The diagonal line ($y=x$) represents a model with no discriminative ability (random guessing).
+    -   The closer the curve is to the top-left corner, the better the model's performance.
+    -   It helps visualize the trade-off between sensitivity and specificity.
+
+**8. AUC - Area Under the ROC Curve (`roc_auc()`):**
+
+-   **Interpretation:** Represents the probability that the model will rank a randomly chosen positive instance higher than a randomly chosen negative instance.
+-   AUC = $0.5$: Model has no discriminative ability (like random guessing).
+-   AUC = $1.0$: Model has perfect discrimination.
+-   General guide:
+    -   $0.9 - 1.0$: Excellent
+    -   $0.8 - 0.9$: Good
+    -   $0.7 - 0.8$: Fair
+    -   $0.6 - 0.7$: Poor
+    -   $< 0.6$: Fail
+
+Let's calculate these metrics:
+
+```{r}
+# Confusion Matrix first
+conf_matrix_heart <- heart_test_results %>%
+  conf_mat(truth = heart_disease, estimate = .pred_class)
+
+conf_matrix_heart
+```
+
+```{r}
+autoplot(conf_matrix_heart, type = "heatmap") +
+  labs(title = "Confusion Matrix Heatmap (Heart Disease)")
+
+```
+
+**Define a set of metrics**
+
+```{r}
+classification_metrics_set <- metric_set(accuracy, precision, recall, specificity, f_meas, roc_auc)
+classification_metrics_set
+```
+
+**Calculate metrics using the set**
+
+```{r}
+# For roc_auc, we need to provide the probability of the positive class (.pred_Yes)
+heart_performance_summary <- heart_test_results %>%
+  classification_metrics_set(truth = heart_disease, estimate = .pred_class, .pred_yes, event_level = "first")
+# event_level = "first" tells yardstick that the first level of 'heart_disease' ('Yes') is the event of interest.
+
+heart_performance_summary
+```
+
+**Plot ROC Curve**
+
+```{r}
+roc_curve_data_heart <- heart_test_results %>%
+  roc_curve(truth = heart_disease, .pred_yes, event_level = "first")
+
+autoplot(roc_curve_data_heart) +
+  labs(
+    title = "ROC Curve for Heart Disease Prediction",
+    subtitle = paste("AUC =", scales::percent((heart_performance_summary %>% filter(.metric == "roc_auc"))$.estimate, accuracy = 0.1
+    ))
+  )
+
+```
+
+**Interpreting the heart_performance_summary**
+
+-   accuracy of \~$0.76$ means $76\%$ of test cases were correctly classified.
+-   precision of \~$0.77$ means that among those predicted to have heart disease, $77\%$ actually did.
+-   recall of \~$0.69$ means that $69\%$ of actual heart disease cases were detected by the model.
+-   specificity of \~$0.83$ means that $83\%$ of those without heart disease were correctly identified as such.
+-   f_meas (F1-score) of \~$0.73$ provides a balanced measure.
+-   roc_auc of \~$0.82$ indicates good discriminative ability of the model. The ROC curve visually confirms this by being well above the diagonal line.
+
+## Automating with `last_fit()`
+
+We can use `last_fit()` to train on the full training set and evaluate on the test set in one step. It automatically calculates accuracy and roc_auc by default for classification.
+
+```{r}
+# Use the workflow (heart_wf) and split (heart_split)
+heart_final_fit_lf <- heart_wf %>%
+  last_fit(split = heart_split)
+
+# Collect metrics (default: accuracy and roc_auc)
+metrics_from_lf_heart <- heart_final_fit_lf %>%
+  collect_metrics()
+
+metrics_from_lf_heart
+```
+
+```{r}
+# Collect predictions to plot ROC or calculate other metrics
+predictions_from_lf_heart <- heart_final_fit_lf %>%
+  collect_predictions()
+
+# Plot ROC curve from last_fit predictions
+predictions_from_lf_heart %>%
+  roc_curve(truth = heart_disease, .pred_yes, event_level = "first") %>%
+  autoplot() +
+  labs(title = "ROC Curve from last_fit (Heart Disease)")
+        
+
+```
+
+# Example: Predicting Employee Attrition
+
+Let's apply the same workflow to the `employee_data` to predict `left_company`.
+
+## 1. Data Splitting & Factor Level Management
+
+The event of interest is `left_company == 'Yes'`. We need to ensure 'Yes' is the first factor level.
+
+```{r}
+levels(employee_data$left_company)
+```
+
+```{r}
+# Reorder if 'Yes' is not the first level
+employee_data <- employee_data %>%
+  mutate(left_company = factor(left_company, levels = c('Yes', 'No')))
+
+levels(employee_data$left_company)
+
+```
+
+```{r}
+# Split data
+set.seed(314)
+employee_split <- employee_data %>%
+  initial_split(prop = 0.75, strata = left_company)
+
+employee_training <- training(employee_split)
+employee_test <- testing(employee_split)
+
+cat("Employee training dimensions:", dim(employee_training), "\n")
+cat("Employee testing dimensions:", dim(employee_test), "\n")
+
+```
+
+## 2. Feature Engineering (`recipes`)
+
+Similar recipe: Yeo-Johnson, normalize for numeric; dummy variables for nominal.
+
+```{r}
+employee_recipe <- recipe(
+  left_company ~ .,
+  data = employee_training) %>%
+  step_YeoJohnson(all_numeric_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  # Add step_novel before step_dummy if new factor levels are anticipated in unseen data
+  step_novel(all_nominal_predictors(), new_level = "new_level_placeholder") %>%
+  step_dummy(all_nominal_predictors(), one_hot = FALSE) # one_hot = FALSE for k-1 dummies
+
+# Check recipe (optional)
+# prep(employee_recipe) %>% bake(new_data = head(employee_training)) %>% glimpse()
+employee_recipe
+```
+
+## 3. Model Specification (Using `logistic_model_spec` from before)
+
+We use the same `logistic_reg() %>% set_engine("glm")` specification.
+
+## 4. Create a Workflow
+
+```{r}
+employee_wf <- workflow() %>%
+  add_model(logistic_model_spec) %>%
+  add_recipe(employee_recipe)
+
+employee_wf
+```
+
+## 5. Train and Evaluate with `last_fit()`
+
+```{r}
+employee_final_fit_lf <- employee_wf %>%
+  last_fit(split = employee_split)
+
+# Collect metrics
+metrics_from_lf_employee <- employee_final_fit_lf %>%
+  collect_metrics()
+
+metrics_from_lf_employee
+```
+
+```{r}
+# Collect predictions
+predictions_from_lf_employee <- employee_final_fit_lf %>%
+  collect_predictions()
+
+# Plot ROC curve
+roc_plot_employee <- predictions_from_lf_employee %>%
+  roc_curve(truth = left_company, .pred_Yes, event_level = "first") %>% # .pred_Yes from factor levels
+  autoplot() +
+  labs(
+    title = "ROC Curve for Employee Attrition Prediction",
+    subtitle = paste("AUC =", scales::percent(
+      (metrics_from_lf_employee %>% filter(.metric == "roc_auc"))$.estimate, accuracy = 0.1
+    ))
+  )
+
+roc_plot_employee
+```
+
+Let's calculate a full set of metrics for the employee attrition model:
+
+```{r}
+employee_performance_summary_lf <- predictions_from_lf_employee %>%
+  classification_metrics_set(truth = left_company, estimate = .pred_class, .pred_Yes, event_level = "first")
+
+
+employee_performance_summary_lf
+
+```
+
+```{r}
+# Confusion Matrix
+predictions_from_lf_employee %>%
+  conf_mat(truth = left_company, estimate = .pred_class) %>%
+  autoplot(type = "heatmap") +
+  labs(title = "Confusion Matrix (Employee Attrition)")
+
+```
+
+# Conclusion
+
+This notebook has provided a comprehensive guide to using logistic regression within the `tidymodels` framework. We covered:
+
+-   The theory behind logistic regression, including odds, log-odds, and coefficient interpretation.
+-   The `tidymodels` workflow: data splitting, detailed feature engineering with `recipes` (Yeo-Johnson for skewness, normalization, dummy variable creation), model specification with `parsnip`, bundling with `workflows`, and fitting.
+-   Detailed exploration and interpretation of various classification performance metrics using `yardstick`, including the confusion matrix, accuracy, precision, recall, specificity, F1-score, ROC curves, and AUC.
+-   Automation of training and evaluation using `last_fit()`.
+
+Logistic regression is a foundational algorithm for classification. `tidymodels` offers a consistent, powerful, and modern toolkit for implementing it effectively, from data preparation to model evaluation and interpretation.
+
+**Further Exploration:**
+
+-   Experiment with different recipe steps (e.g., `step_other` for nominal predictors with many levels, interaction terms with `step_interact`).
+-   Try regularized logistic regression (e.g., `logistic_reg(penalty = tune(), mixture = tune()) %>% set_engine("glmnet")`) and tune hyperparameters.
+-   Compare logistic regression performance with other classification algorithms available in `parsnip`.
+-   Investigate techniques for handling imbalanced classes if your dataset suffers from this issue.
