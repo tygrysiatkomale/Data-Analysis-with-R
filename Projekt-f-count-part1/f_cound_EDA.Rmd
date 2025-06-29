@@ -1,4 +1,3 @@
-
 ---
 title: "Exploratory Data Analysis (EDA)"
 author: "Orły"
@@ -14,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 This notebook conducts an **Exploratory Data Analysis (EDA)** on the `richmondway.csv` dataset, which contains episode-level statistics related to the character Roy Kent in a TV series.
 
----
+------------------------------------------------------------------------
 
 ## 1. Data Loading and Inspection
 
@@ -22,6 +21,9 @@ This notebook conducts an **Exploratory Data Analysis (EDA)** on the `richmondwa
 library(tidyverse)
 library(skimr)
 library(visdat)
+library(tidymodels)
+
+set.seed(44)
 
 df <- read_csv("richmondway.csv")
 
@@ -30,7 +32,7 @@ glimpse(df)
 skim(df)
 ```
 
----
+------------------------------------------------------------------------
 
 ## 2. Missing Values Overview
 
@@ -39,7 +41,7 @@ vis_miss(df, cluster = TRUE) +
   labs(title = "Missing Values")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 3. Data Cleaning and Preparation
 
@@ -56,7 +58,7 @@ df <- df %>%
 sum(duplicated(df))
 ```
 
----
+------------------------------------------------------------------------
 
 ## 4. Univariate Analysis
 
@@ -90,7 +92,7 @@ p1
 p2
 ```
 
----
+------------------------------------------------------------------------
 
 ## 5. Bivariate Analysis
 
@@ -103,7 +105,7 @@ ggplot(df, aes(x = Imdb_rating, y = F_score)) +
   labs(title = "F_score vs IMDb Rating", x = "IMDb Rating", y = "F_score")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 6. Categorical Flags
 
@@ -119,7 +121,7 @@ df %>%
             mean_imdb = mean(Imdb_rating, na.rm = TRUE))
 ```
 
----
+------------------------------------------------------------------------
 
 ## 7. Time Series View (by Episode Order)
 
@@ -130,12 +132,180 @@ ggplot(df, aes(x = Episode_order, y = F_score)) +
   labs(title = "F_score Over Episode Order", x = "Episode Order", y = "F_score")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 8. Summary
 
-This EDA highlights:
-- The distribution and variation in Roy Kent’s `F_score` and `F_perc`.
-- How these scores vary with `IMDb rating`, and across flags like `Dating_flag` and `Coaching_flag`.
-- The pattern of Roy’s intensity across the season chronology.
+This EDA highlights: - The distribution and variation in Roy Kent’s `F_score` and `F_perc`. - How these scores vary with `IMDb rating`, and across flags like `Dating_flag` and `Coaching_flag`. - The pattern of Roy’s intensity across the season chronology.
+
+# PART 2
+
+### Hypotheses
+
+1.  **H₁:** Roy's f-bomb count (`F_count_RK`) affects the episode's IMDb rating (`Imdb_rating`).
+2.  **H₂:** T he higher the percentage of profanities (`F_perc`), the greater the chance that a dating thread is present (`Dating_flag = "Yes"`).
+
+### Packages, seeding and data preparation
+
+```{r}
+df <- df |>
+  mutate(
+    Season        = factor(Season),
+    Dating_flag   = factor(Dating_flag,  levels = c("No", "Yes")),
+    Coaching_flag = factor(Coaching_flag, levels = c("No", "Yes"))
+  )
+```
+
+### Train/test split + CV folders
+
+```{r}
+data_split <- initial_split(df, prop = 0.80, strata = Season)
+train_data <- training(data_split)
+test_data  <- testing(data_split)
+
+cv_folds <- vfold_cv(train_data, v = 5, strata = Season)
+```
+
+### Model 1 – linear regression (IMDb)
+
+```{r}
+lin_rec <- 
+  recipe(Imdb_rating ~ F_count_RK + F_perc + Season +
+                          Dating_flag + Coaching_flag,
+         data = train_data) |>
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) |>
+  step_normalize(all_numeric_predictors())
+```
+
+```{r}
+lin_spec <- linear_reg() |> set_engine("lm")
+
+lin_wf <- workflow() |>
+  add_recipe(lin_rec) |>
+  add_model(lin_spec)
+```
+
+```{r}
+lin_res <- fit_resamples(
+  lin_wf,
+  resamples = cv_folds,
+  metrics   = metric_set(rmse, rsq)
+)
+collect_metrics(lin_res)
+```
+
+```{r}
+lin_fit  <- fit(lin_wf, data = train_data)
+
+test_pred_lm <- predict(lin_fit, test_data) |>
+  bind_cols(test_data |> select(Imdb_rating))
+
+metrics(test_pred_lm, truth = Imdb_rating, estimate = .pred)
+tidy(lin_fit)             
+```
+
+**Why this model?**
+
+The target (IMDb_rating) is numeric, so ordinary least squares gives the simplest, fully interpretable baseline inside tidymodels.
+
+**Which variables and why?**
+
+-   F_count_RK & F_perc - profanity intensity (hypothesized driver).
+
+-   Season dummies - capture structural shifts across seasons.
+
+-   Dating_flag and Coaching_flag - control for story lines that EDA suggested may alter viewer reception.
+
+**How to interpret the coefficients?**
+
+-   Intercept = 8.32 - baseline rating for a Season 3 episode with no dating/coaching subplot and zero f-bombs.
+
+-   F_count_RK = +0.35 pts per extra f-bomb (p = 0.13, not significant).
+
+-   F_perc ≈ 0 and all dummy variables have small, non-significant effects (p ≫ 0.05). Thus no predictor passes the 0.05 threshold.
+
+**How well does the model fit?**
+
+Cross-validation: RMSE = 0.764, R² = 0.35 (explains \~35 % of in-fold variance). Test set: RMSE = 0.757, R² = 0.002 - almost no explanatory power on unseen data. MAE = 0.631. The model predicts within ≈ 0.76 points but barely beats the mean baseline, indicating weak generalisation.
+
+### Model 2 - Logistic regression (Dating_flag)
+
+```{r}
+log_rec <- 
+  recipe(Dating_flag ~ F_perc + F_count_RK + Season + Coaching_flag,
+         data = train_data) |>
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) |>
+  step_normalize(all_numeric_predictors())
+```
+
+```{r}
+log_spec <- logistic_reg() |> set_engine("glm")
+
+log_wf <- workflow() |>
+  add_recipe(log_rec) |>
+  add_model(log_spec)
+```
+
+```{r}
+log_res <- fit_resamples(
+  log_wf,
+  resamples = cv_folds,
+  metrics   = metric_set(roc_auc, accuracy)
+)
+collect_metrics(log_res)
+```
+
+```{r}
+log_fit <- fit(log_wf, data = train_data)
+
+test_pred_glm <- predict(log_fit, test_data, type = "prob") |>
+  bind_cols(test_data |> select(Dating_flag))
+
+roc_auc(test_pred_glm, truth = Dating_flag, .pred_Yes)
+tidy(log_fit, exponentiate = TRUE)
+```
+
+**Why GLM-logit?**
+
+Because Dating_flag is binary. A logistic GLM models log-odds, outputs class probabilities, and keeps the workflow fully interpretable in tidymodels.
+
+**Odds ratio for F_perc**
+
+Exponentiating the coefficient gives an OR ≈ 1 (the numeric 6.7 × 10⁻⁹³ with p ≈ 0.998 is just a rounding artefact). Changing profanity percentage has no statistically reliable effect on the odds that a dating subplot appears.
+
+**Metrics – what they mean**
+
+-   Accuracy (0.75 in CV) – share of episodes correctly classified; easy to read but can hide class-imbalance issues.
+
+-   AUC (0.93 CV, 0.13 test) – quality of probability ranking; near-1.0 in CV says the model separates classes well in training folds, but the crash to 0.13 on the test set signals severe over-fitting or label inversion, i.e. poor generalisation despite the decent accuracy figure.
+
+### Model comparison
+
+```{r}
+mod_compare <- tibble(
+  Model        = c("Linear (Imdb_rating)", "Logistic (Dating_flag)"),
+  Main_metric  = c(
+    paste0("RMSE = ", round(metric_set(rmse)(test_pred_lm, truth = Imdb_rating, estimate = .pred)$.estimate, 3)),
+    paste0("AUC = ",  round(roc_auc(test_pred_glm, truth = Dating_flag, .pred_Yes)$.estimate, 3))
+  ),
+  Interpretability = c("β – pkt IMDb", "OR – odds ratio")
+)
+mod_compare
+```
+
+### Summary
+
+Import & cleaning – loaded richmondway.csv, fixed types, removed NAs, created tidy factors to ensure consistent downstream modelling.
+
+EDA – key findings – profanity is weakly, positively correlated with IMDb score; season shifts and subplot flags show no clear patterns.
+
+Hypotheses → methods – H₁ (Imdb ∼ profanity) → linear regression; H₂ (Dating_flag ∼ profanity) → logistic regression.
+
+Model 1: linear – CV RMSE ≈ 0.76, R²_train ≈ 0.35, R²_test ≈ 0.00; no significant coefficients → profanity/flags don’t explain ratings.
+
+Model 2: logit – CV accuracy ≈ 0.75, AUC ≈ 0.93 but test AUC ≈ 0.13; odds-ratios ≈ 1, no significant effects → model overfits, no real signal.
+
+Comparison – both models are transparent but fail to generalise; language intensity and simple plot flags are insufficient predictors.
+
+
 
